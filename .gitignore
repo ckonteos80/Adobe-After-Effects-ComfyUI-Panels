@@ -1,0 +1,18 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+__MACOSX/
+
+# Temp/backup
+*.bak
+*.tmp
+*.log
+
+# Compiled releases
+dist/*.jsxbin
+dist/*.zip
+
+# Editor settings (optional)
+.vscode/
+.idea/
