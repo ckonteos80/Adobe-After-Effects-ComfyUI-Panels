@@ -1,116 +1,141 @@
-AE-ComfyUI-Panels
-Connect Adobe After Effects with ComfyUI for AI-powered image generation
+# **AE-ComfyUI-Panels**
 
-This repository contains a set of After Effects ScriptUI Panels designed to send prompts or images from AE directly to ComfyUI and automatically import the generated results back into your project.
-A streamlined workflow for artists who want AI generation inside their motion-graphics pipeline.
+Real-time AE → ComfyUI generative workflow
 
-🔧 What This Project Does
+A set of After Effects ScriptUI panels that connect directly with ComfyUI.
+Send prompts or selected layers from AE, generate images through your ComfyUI workflow, and automatically import the results back into your composition.
+A streamlined AI-enhanced pipeline for motion graphics and design.
 
-Adds custom ScriptUI panels to After Effects.
+---
 
-Lets you trigger ComfyUI workflows from inside AE.
+## 📦 **Download**
 
-Supports Text-to-Image and Image-to-Image generation.
+*(Add a ZIP or release build here if you want, matching your other repo format)*
 
-Automatically imports the generated output (PNG/JPG/Sequences).
+---
 
-Includes tools for reading ComfyUI JSON metadata such as seeds, CFG, resolution, etc.
+## 🧠 **Concept**
 
-✨ Features
+These panels bridge **Adobe After Effects** and **ComfyUI**, enabling a smooth AI-generation workflow without leaving AE.
+Depending on the panel, AE can:
 
-Text2Image Panel
-Generate AI images using text prompts directly inside AE.
+1. Send a **text prompt** to ComfyUI (Text2Image),
+2. Or send a **selected image layer** (Image2Image),
+3. Process it using your ComfyUI workflow,
+4. Retrieve the generated output into the AE project,
+5. Optionally read JSON metadata (seed, settings, etc.) for reproducible generation.
 
-Image2Image Panel
-Select a layer in your comp → send it to ComfyUI → get a styled or modified result.
+This lets you build hybrid pipelines combining AE animation with AI-driven visuals.
 
-JSON Metadata Reader
-Extract parameters such as seed / steps / model used — useful for documentation or expressions.
+---
 
-Screenshots Folder
-Preview of UI layouts and workflow steps.
+## ✨ **Features**
 
-MIT License
-Free for personal and commercial use.
+* **Text2Image Panel**
+  Generate images inside AE using prompt text.
 
-📁 Folder Structure
+* **Image2Image Panel**
+  Select any image layer and generate variations through ComfyUI.
+
+* **JSON Metadata Reader**
+  Extract seed, CFG, steps, model info, etc., from ComfyUI’s JSON outputs.
+
+* **Screenshots Folder**
+  Visual reference for UI layout and workflow.
+
+* **MIT License**
+  Fully open for personal + commercial use.
+
+---
+
+## 📁 **Folder Structure**
+
+```
 AE-ComfyUI-Panels/
 ├── Text2Image/        # Text-to-image panel code
 ├── Image2Image/       # Image-to-image panel code
 ├── JsonReader/        # Metadata tools for AE
-├── Screenshots/       # UI and workflow visuals
+├── Screenshots/       # UI & workflow reference images
 ├── .gitignore
 └── LICENSE
+```
 
-🖥️ Requirements
+---
 
-Adobe After Effects (2022 or later recommended)
+## 🖥️ **Requirements**
 
-ComfyUI running locally (default: http://127.0.0.1:8000
-)
+* Adobe After Effects (2022 or newer recommended)
+* ComfyUI running locally (default: [http://127.0.0.1:8000](http://127.0.0.1:8000) )
+* A compatible workflow for Image2Image or Text2Image
 
-A compatible ComfyUI workflow for T2I or I2I generation
+---
 
-⚙️ Installation
+## ⚙️ **Installation**
 
-Download or clone the repo:
+1. Download or clone the repo:
 
-git clone https://github.com/ckonteos80/AE-ComfyUI-Panels.git
+   ```
+   git clone https://github.com/ckonteos80/AE-ComfyUI-Panels.git
+   ```
+2. Copy the panel scripts into:
 
+   ```
+   Adobe After Effects / Support Files / Scripts / ScriptUI Panels/
+   ```
+3. Restart AE.
+4. Access the panel from:
 
-Copy the panel scripts into:
+   ```
+   Window → AE-ComfyUI Panel
+   ```
 
-Adobe After Effects / Support Files / Scripts / ScriptUI Panels/
+---
 
+## ▶️ **Usage**
 
-Restart After Effects.
+### **Text-to-Image**
 
-Open the panel from:
+1. Open the Text2Image panel
+2. Enter prompt + settings
+3. Click **Generate**
+4. The result imports directly into your AE project
 
-Window → AE-ComfyUI Panel
+### **Image-to-Image**
 
-▶️ How It Works
-Text-to-Image
+1. Select an image layer in AE
+2. Open the Image2Image panel
+3. Adjust parameters (denoise, strength, etc.)
+4. Generate → result appears as a new imported layer
 
-Open the T2I panel.
+### **Metadata Reading**
 
-Enter your prompt & settings (seed, size, steps).
+Use the JsonReader tools to read ComfyUI’s JSON output into AE (seed, params, etc.).
 
-Click Generate.
+---
 
-ComfyUI renders the image → panel imports it into your project.
+## 🚧 **Roadmap**
 
-Image-to-Image
+* Batch prompt generation
+* Live preview inside panel
+* Progress indicator during ComfyUI rendering
+* Multi-image return support
+* Optional AE project template
 
-Select a layer in AE.
+---
 
-Open the I2I panel.
+## 📸 **Screenshots**
 
-Configure denoise/strength settings.
+*(Insert images from `/Screenshots` here)*
 
-Generate variations → results appear in AE as new layers.
+---
 
-JSON Reading
+## 📜 **License**
 
-Use the tools inside JsonReader/ to import metadata (seed, model, steps, etc.) into comments or expressions.
+MIT License — free for commercial and non-commercial use.
 
-🛣️ Roadmap
+---
 
-Batch generation for multiple prompts
+## 👤 **Author**
 
-Live preview inside AE panel
-
-Progress indicator during ComfyUI generation
-
-Multi-image return support
-
-Optional starter AE project template
-
-📸 Screenshots
-
-(Add your images from /Screenshots here)
-
-📜 License
-
-This project is under the MIT License.
-See the LICENSE file for details.
+Created by **@ckonteos80**
+Contributions and pull requests welcome.
