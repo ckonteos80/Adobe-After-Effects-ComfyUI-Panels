@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AE-ComfyUI-Panels | After Effects + ComfyUI</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --fg: #f5f5f5;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --line: #222;
+      --maxw: 1150px;
+      --base: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+    }
+
+    body {
+      font-size: var(--base);
+      line-height: 1.9;
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 1rem 2rem;
+      background: linear-gradient(180deg, #141a22, var(--bg));
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin: .25rem 0 .75rem;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin: 2.25rem 0 1rem;
+    }
+
+    .container {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    p, li {
+      color: var(--fg);
+      opacity: .92;
+    }
+
+    ul, ol {
+      max-width: 900px;
+      margin: 0 auto;
+      padding-left: 1.25rem;
+      text-align: left;
+    }
+
+    section {
+      text-align: center;
+      padding: 1.5rem 0;
+    }
+
+    .lead {
+      font-size: 1.2rem;
+      color: var(--muted);
+    }
+
+    iframe {
+      display: block;
+      margin: 1.5rem auto;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0,0,0,.55);
+      width: 100%;
+      max-width: 960px;
+      height: 54vw;
+      max-height: 540px;
+    }
+
+    .feature-image {
+      display: block;
+      margin: 2.5rem auto;
+      border-radius: 12px;
+      max-width: 100%;
+      height: auto;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    a.button {
+      display: inline-block;
+      margin: .8rem .5rem 0;
+      padding: 1rem 1.6rem;
+      border-radius: 10px;
+      font-weight: 700;
+      text-decoration: none;
+      color: white;
+      transition: filter .2s;
+      font-size: 1rem;
+    }
+
+    a.download { background: #238636; }
+    a.download:hover { filter: brightness(1.1); }
+
+    a.github { background: #58a6ff; }
+    a.github:hover { filter: brightness(1.1); }
+
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 1rem;
+      color: var(--muted);
+      padding: 2rem 0;
+    }
+
+    @media (max-width: 520px) {
+      h1 { font-size: 2.3rem; }
+      h2 { font-size: 1.5rem; }
+      :root { --base: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🎬 AE-ComfyUI-Panels</h1>
+    <p class="lead">ScriptUI panels that connect Adobe After Effects with ComfyUI for AI-powered image generation</p>
+  </header>
+
+  <main class="container">
+    <!-- Demo video (replace src with your own Vimeo/YouTube link) -->
+    <section>
+      <iframe
+        src="https://player.vimeo.com/video/XXXXXXXXX?badge=0&autopause=0&player_id=0&app_id=58479"
+        frameborder="0"
+        allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+        allowfullscreen
+        title="AE-ComfyUI-Panels Demo"
+      ></iframe>
+    </section>
+
+    <section>
+      <h2>🧠 Concept</h2>
+      <p>
+        <strong>AE-ComfyUI-Panels</strong> adds custom ScriptUI panels to
+        <strong>Adobe After Effects</strong> that talk directly to
+        <a href="https://github.com/comfyanonymous/ComfyUI" target="_blank">ComfyUI</a>.
+        You can send prompts or selected layers from AE to your ComfyUI workflows, generate new images,
+        and automatically import the results back into your composition — all without leaving After Effects.
+      </p>
+
+      <!-- Showcase image (replace src with a screenshot from your repo) -->
+      <img
+        src="https://github.com/user-attachments/assets/your-ae-comfyui-screenshot.png"
+        alt="AE-ComfyUI-Panels Workflow"
+        class="feature-image"
+      />
+    </section>
+
+    <section>
+      <h2>🎨 Features</h2>
+      <ul>
+        <li>Text-to-Image panel: generate AI images from text prompts directly in AE</li>
+        <li>Image-to-Image panel: send a selected layer to ComfyUI and get styled/modified results</li>
+        <li>JSON metadata reader: inspect seed, CFG, steps, model, and other ComfyUI settings</li>
+        <li>Imports generated images (or sequences) back into your AE project automatically</li>
+        <li>Works with local ComfyUI setups on <code>http://127.0.0.1:8000</code></li>
+        <li>MIT-licensed, open for personal and commercial use</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>⚙️ Installation</h2>
+      <p><strong>Step 1: Clone or download the repo</strong></p>
+      <ul>
+        <li>
+          Clone with Git:
+          <code>git clone https://github.com/ckonteos80/AE-ComfyUI-Panels.git</code>
+        </li>
+        <li>Or download a ZIP from the latest release</li>
+      </ul>
+
+      <p><strong>Step 2: Install the panels into After Effects</strong></p>
+      <ul>
+        <li>Copy the panel scripts into your AE <code>Scripts/ScriptUI Panels/</code> folder</li>
+        <li>Restart After Effects so it can detect the new panels</li>
+        <li>Open them via <strong>Window → AE-ComfyUI Panel</strong> (or respective panel names)</li>
+      </ul>
+
+      <a
+        href="https://github.com/ckonteos80/AE-ComfyUI-Panels/releases/latest"
+        target="_blank"
+        class="button download"
+      >⬇️ Download Latest Release</a>
+      <a
+        href="https://github.com/ckonteos80/AE-ComfyUI-Panels"
+        target="_blank"
+        class="button github"
+      >💻 View Source on GitHub</a>
+    </section>
+
+    <section>
+      <h2>▶️ Usage</h2>
+      <p><strong>Text-to-Image Panel</strong></p>
+      <ul>
+        <li>Open the Text2Image panel inside AE</li>
+        <li>Enter your prompt, resolution, steps, and seed values</li>
+        <li>Click <strong>Generate</strong> to send the request to ComfyUI</li>
+        <li>The generated image is imported into your project and ready to use in a comp</li>
+      </ul>
+
+      <p><strong>Image-to-Image Panel</strong></p>
+      <ul>
+        <li>Select an image layer in your composition</li>
+        <li>Open the Image2Image panel</li>
+        <li>Adjust denoise/strength and other settings if available</li>
+        <li>Generate variations; the results appear as new layers in your AE project</li>
+      </ul>
+
+      <p><strong>Metadata Reader</strong></p>
+      <ul>
+        <li>Use the JsonReader tools to inspect ComfyUI’s JSON output</li>
+        <li>Log or embed seed/parameter info for reproducibility</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🧩 ComfyUI Setup</h2>
+      <p>
+        AE-ComfyUI-Panels expects a running ComfyUI server at
+        <code>http://127.0.0.1:8000</code>. Configure your panel’s API URL to point to
+        your ComfyUI instance and load a workflow that accepts either a text prompt or
+        an input image (depending on which panel you use).
+      </p>
+      <ul>
+        <li>Start ComfyUI with the desired model/checkpoint loaded</li>
+        <li>Ensure your workflow exposes the proper API nodes for Text2Image / Image2Image</li>
+        <li>Optionally store outputs and JSON metadata where AE can read them</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Created by <strong>Christos Konteos</strong></p>
+  </footer>
+</body>
+</html>
