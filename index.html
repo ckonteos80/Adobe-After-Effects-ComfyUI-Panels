@@ -110,6 +110,54 @@
       max-width: 100%;
       height: auto;
       box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-image:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 40px rgba(88, 166, 255, 0.3);
+    }
+
+    /* Lightbox styles */
+    .lightbox {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .lightbox.active {
+      display: flex;
+    }
+
+    .lightbox img {
+      max-width: 95%;
+      max-height: 95%;
+      border-radius: 8px;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 40px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 10000;
+    }
+
+    .lightbox-close:hover {
+      color: var(--accent);
     }
 
     a.button {
@@ -181,6 +229,7 @@
         src="https://raw.githubusercontent.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/main/Screenshots/AllPanels.jpg"
         alt="AE-ComfyUI-Panels Workflow"
         class="feature-image"
+        onclick="openLightbox(this.src)"
       />
     </section>
 
@@ -291,8 +340,34 @@
     </section>
   </main>
 
+  <!-- Lightbox for image zoom -->
+  <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close">&times;</span>
+    <img id="lightbox-img" src="" alt="Enlarged view">
+  </div>
+
   <footer>
     <p>Created by <strong>Christos Konteos</strong></p>
   </footer>
+
+  <script>
+    function openLightbox(src) {
+      document.getElementById('lightbox').classList.add('active');
+      document.getElementById('lightbox-img').src = src;
+      document.body.style.overflow = 'hidden'; // Prevent scrolling when lightbox is open
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+      document.body.style.overflow = ''; // Restore scrolling
+    }
+
+    // Close lightbox on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeLightbox();
+      }
+    });
+  </script>
 </body>
 </html>
