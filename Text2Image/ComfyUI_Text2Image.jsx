@@ -1,4 +1,4 @@
-/* ComfyUI Text2Image Panel — Generate images from text layer prompts
+/* ComfyUI Text2Image Panel -- Generate images from text layer prompts
    Pure ExtendScript (AE) + Socket HTTP; no external tools required. */
 
 (function(thisObj) {
@@ -14,7 +14,8 @@
 
   // Settings file for persistence
   var SETTINGS_FILE = new File(Folder.userData.fsName + "/ComfyText2Image_Settings.json");
-  var WORKFLOW_CACHE_FILE = new File(Folder.userData.fsName + "/ComfyText2Image_WorkflowCache.json");
+  var WORKFLOW_CACHE_INDEX_FILE = new File(Folder.userData.fsName + "/ComfyText2Image_CacheIndex.json");
+  var WORKFLOW_CACHE_DIR = Folder.userData.fsName;
   
   // Initialize unique namespace
   if (!$._comfyText2ImagePanel) {
@@ -83,47 +84,92 @@
   }
 
   // ====== Workflow cache functions ======
+  // workflowIndex: lightweight { name: { path, timestamp } } -- loaded at startup
+  // workflowCache: full data { name: { objectInfo, samplerInfo, ... } } -- loaded on demand
+  var workflowIndex = {};
   var workflowCache = {};
-  
-  function loadWorkflowCache(){
-    if (!WORKFLOW_CACHE_FILE.exists) return {};
-    
+
+  function sanitizeCacheName(name) {
+    return String(name).replace(/[^a-zA-Z0-9_\-]/g, "_");
+  }
+
+  function workflowEntryFile(name) {
+    return new File(WORKFLOW_CACHE_DIR + "/ComfyText2Image_Cache_" + sanitizeCacheName(name) + ".json");
+  }
+
+  function loadWorkflowIndex(){
+    if (!WORKFLOW_CACHE_INDEX_FILE.exists) return {};
     try {
-      if (WORKFLOW_CACHE_FILE.open("r")) {
-        var json = WORKFLOW_CACHE_FILE.read();
-        WORKFLOW_CACHE_FILE.close();
-        
-        if (!json || json.length === 0) {
-          return {};
-        }
-        
-        var cache = JSON.parse(json);
-        if (!cache || typeof cache !== "object") {
-          return {};
-        }
-        
+      if (WORKFLOW_CACHE_INDEX_FILE.open("r")) {
+        var json = WORKFLOW_CACHE_INDEX_FILE.read();
+        WORKFLOW_CACHE_INDEX_FILE.close();
+        if (!json || json.length === 0) return {};
+        var idx = JSON.parse(json);
+        if (!idx || typeof idx !== "object") return {};
         var count = 0;
-        for (var k in cache) {
-          if (cache[k]) count++;
-        }
-        log("Loaded workflow cache from disk (" + count + " workflows)");
-        return cache;
+        for (var k in idx) { if (idx[k]) count++; }
+        log("Loaded workflow index (" + count + " entries)");
+        return idx;
       }
     } catch(e) {
-      log("Failed to load workflow cache: " + String(e));
+      log("Failed to load workflow index: " + String(e));
     }
     return {};
   }
 
-  function saveWorkflowCache(){
+  function saveWorkflowIndex(){
     try {
-      if (WORKFLOW_CACHE_FILE.open("w")) {
-        WORKFLOW_CACHE_FILE.write(JSON.stringify(workflowCache));
-        WORKFLOW_CACHE_FILE.close();
-        log("Saved workflow cache to disk");
+      if (WORKFLOW_CACHE_INDEX_FILE.open("w")) {
+        WORKFLOW_CACHE_INDEX_FILE.write(JSON.stringify(workflowIndex));
+        WORKFLOW_CACHE_INDEX_FILE.close();
+        log("Saved workflow index");
       }
     } catch(e) {
-      log("Failed to save workflow cache: " + e);
+      log("Failed to save workflow index: " + e);
+    }
+  }
+
+  function saveWorkflowEntry(name, data){
+    try {
+      var f = workflowEntryFile(name);
+      if (f.open("w")) {
+        f.write(JSON.stringify(data));
+        f.close();
+        log("Saved cache entry: " + name);
+      }
+    } catch(e) {
+      log("Failed to save cache entry " + name + ": " + e);
+    }
+  }
+
+  function loadWorkflowEntry(name){
+    if (workflowCache[name]) return workflowCache[name];
+    try {
+      var f = workflowEntryFile(name);
+      if (!f.exists) return null;
+      if (f.open("r")) {
+        var json = f.read();
+        f.close();
+        if (!json || json.length === 0) return null;
+        var data = JSON.parse(json);
+        if (data) {
+          workflowCache[name] = data;
+          log("Loaded cache entry from disk: " + name);
+          return data;
+        }
+      }
+    } catch(e) {
+      log("Failed to load cache entry " + name + ": " + e);
+    }
+    return null;
+  }
+
+  function deleteWorkflowEntry(name){
+    try {
+      var f = workflowEntryFile(name);
+      if (f.exists) f.remove();
+    } catch(e) {
+      log("Failed to delete cache entry " + name + ": " + e);
     }
   }
 
@@ -137,47 +183,61 @@
   function cacheWorkflowInfo(workflowPath, objectInfo, samplerInfo) {
     var name = getWorkflowName(workflowPath);
     if (!name) return;
-    
-    workflowCache[name] = {
+    var ts = new Date().getTime();
+
+    // Update lightweight index
+    workflowIndex[name] = { path: workflowPath, timestamp: ts };
+    saveWorkflowIndex();
+
+    // Save heavy data to separate file
+    var entry = {
       path: workflowPath,
       objectInfo: objectInfo,
       samplerInfo: samplerInfo,
-      timestamp: new Date().getTime()
+      timestamp: ts
     };
-    
-    saveWorkflowCache();
+    workflowCache[name] = entry;
+    saveWorkflowEntry(name, entry);
     log("Cached workflow: " + name);
   }
 
   function getCachedWorkflowInfo(workflowPath) {
     var name = getWorkflowName(workflowPath);
-    if (!name || !workflowCache[name]) return null;
-    
-    var cachedInfo = workflowCache[name];
-    
+    if (!name || !workflowIndex[name]) return null;
+
     // Check if workflow file has been modified since caching
+    var idxEntry = workflowIndex[name];
     var wfFile = new File(workflowPath);
     if (wfFile.exists) {
       var fileModifiedTime = wfFile.modified.getTime();
-      
-      if (fileModifiedTime > cachedInfo.timestamp) {
+      if (fileModifiedTime > idxEntry.timestamp) {
         log("Workflow modified since cache, invalidating: " + name);
+        delete workflowIndex[name];
         delete workflowCache[name];
-        saveWorkflowCache();
+        deleteWorkflowEntry(name);
+        saveWorkflowIndex();
         return null;
       }
     }
-    
+
+    // Lazy-load the full entry from disk
+    var entry = loadWorkflowEntry(name);
+    if (!entry) {
+      // Entry file missing -- remove stale index
+      delete workflowIndex[name];
+      saveWorkflowIndex();
+      return null;
+    }
     log("Using cached info for workflow: " + name);
-    return cachedInfo;
+    return entry;
   }
 
   function updateWorkflowDropdown() {
     wfDropdown.removeAll();
     
     var names = [];
-    for (var name in workflowCache) {
-      if (workflowCache[name]) {
+    for (var name in workflowIndex) {
+      if (workflowIndex[name]) {
         names.push(name);
       }
     }
@@ -214,6 +274,34 @@
     }
   }
 
+  function updateWorkflowUI(workflowPath) {
+    var hasWorkflow = !!(workflowPath && workflowPath.length > 0);
+    var hasNeg = false;
+
+    if (hasWorkflow) {
+      try {
+        var wfFile = new File(workflowPath);
+        if (wfFile.exists && wfFile.open("r")) {
+          var wfText = wfFile.read();
+          wfFile.close();
+          var workflow = JSON.parse(wfText);
+          hasNeg = hasNegativePromptNode(workflow);
+        }
+      } catch(e) {
+        log("Error reading workflow for UI update: " + e);
+      }
+    }
+
+    sampPanel.visible = hasWorkflow;
+    sizePanel.visible = hasWorkflow;
+    seedPanel.visible = hasWorkflow;
+    negPromptPanel.visible = hasNeg;
+    negPrompt.enabled = hasNeg;
+
+    setGenEnabled();
+    win.layout.layout(true);
+  }
+
   function applyCachedWorkflowSettings(cachedInfo) {
     if (!cachedInfo || !cachedInfo.samplerInfo) return false;
     
@@ -245,25 +333,35 @@
       }
       
       if (samplerInfo.stepsRange) {
+        // Expand range first to avoid out-of-range errors during transition
+        stepsSlider.minvalue = Math.min(stepsSlider.minvalue, samplerInfo.stepsRange.min);
+        stepsSlider.maxvalue = Math.max(stepsSlider.maxvalue, samplerInfo.stepsRange.max);
         stepsSlider.minvalue = samplerInfo.stepsRange.min;
         stepsSlider.maxvalue = samplerInfo.stepsRange.max;
         var currentSteps = (samplerInfo.currentValues && samplerInfo.currentValues.steps != null) ? samplerInfo.currentValues.steps : samplerInfo.stepsRange.defaultValue;
+        currentSteps = Math.max(samplerInfo.stepsRange.min, Math.min(samplerInfo.stepsRange.max, currentSteps));
         stepsSlider.value = currentSteps;
-        stepsVal.text = String(currentSteps);
+        stepsVal.text = String(Math.round(currentSteps));
       }
       
       if (samplerInfo.cfgRange) {
+        cfgSlider.minvalue = Math.min(cfgSlider.minvalue, samplerInfo.cfgRange.min);
+        cfgSlider.maxvalue = Math.max(cfgSlider.maxvalue, samplerInfo.cfgRange.max);
         cfgSlider.minvalue = samplerInfo.cfgRange.min;
         cfgSlider.maxvalue = samplerInfo.cfgRange.max;
         var currentCfg = (samplerInfo.currentValues && samplerInfo.currentValues.cfg != null) ? samplerInfo.currentValues.cfg : samplerInfo.cfgRange.defaultValue;
+        currentCfg = Math.max(samplerInfo.cfgRange.min, Math.min(samplerInfo.cfgRange.max, currentCfg));
         cfgSlider.value = currentCfg;
         cfgVal.text = currentCfg.toFixed(1);
       }
       
       if (samplerInfo.denoiseRange) {
+        denSlider.minvalue = Math.min(denSlider.minvalue, samplerInfo.denoiseRange.min);
+        denSlider.maxvalue = Math.max(denSlider.maxvalue, samplerInfo.denoiseRange.max);
         denSlider.minvalue = samplerInfo.denoiseRange.min;
         denSlider.maxvalue = samplerInfo.denoiseRange.max;
         var currentDenoise = (samplerInfo.currentValues && samplerInfo.currentValues.denoise != null) ? samplerInfo.currentValues.denoise : samplerInfo.denoiseRange.defaultValue;
+        currentDenoise = Math.max(samplerInfo.denoiseRange.min, Math.min(samplerInfo.denoiseRange.max, currentDenoise));
         denSlider.value = currentDenoise;
         denVal.text = currentDenoise.toFixed(2);
         denPanel.visible = true;
@@ -307,10 +405,9 @@
   }
 
   // ====== HTTP helpers ======
-  function die(msg, detail){ 
-    log("FAIL: "+msg+" :: "+(detail||"")); 
-    alert(msg + (detail?("\n\nDetail:\n"+detail):"") + "\n\nLog: " + LOG.fsName); 
-    throw new Error(msg); 
+  function die(msg, detail){
+    log("FAIL: "+msg+" :: "+(detail||""));
+    throw new Error(msg);
   }
   
   function sleep(ms){ $.sleep(ms); }
@@ -362,13 +459,15 @@
       s.write(req); 
     }
 
-    var raw = readAll(s); 
+    var raw = readAll(s);
     s.close();
-    
-    var idx = raw.indexOf("\r\n\r\n"); 
-    if (idx<0) die("Malformed HTTP response.");
-    
-    var head = raw.substring(0, idx), body = raw.substring(idx+4);
+
+    var idx = raw.indexOf("\r\n\r\n");
+    var sepLen = 4;
+    if (idx < 0) { idx = raw.indexOf("\n\n"); sepLen = 2; }
+    if (idx < 0) die("Malformed HTTP response.");
+
+    var head = raw.substring(0, idx), body = raw.substring(idx + sepLen);
     var first = head.split("\r\n")[0]; 
     var m = first.match(/^HTTP\/\d\.\d\s+(\d+)/); 
     var status = m?parseInt(m[1],10):0;
@@ -448,31 +547,43 @@
     return {w:w,h:h};
   }
   
+  function isPromptNode(n){
+    if (!n || !n.inputs) return false;
+    if (n.class_type === "CLIPTextEncode" && n.inputs.hasOwnProperty("text")) return true;
+    if (n.class_type === "CLIPTextEncodeFlux" && n.inputs.hasOwnProperty("clip_l")) return true;
+    return false;
+  }
+
+  function setPromptText(node, text){
+    if (node.class_type === "CLIPTextEncodeFlux") {
+      node.inputs.clip_l = text;
+      node.inputs.t5xxl  = text;
+    } else {
+      node.inputs.text = text;
+    }
+  }
+
   function injectPrompt(wf, text, preferredId){
     var id=null;
-    if (preferredId && wf[preferredId] && wf[preferredId].class_type==="CLIPTextEncode") {
+    if (preferredId && wf[preferredId] && isPromptNode(wf[preferredId])) {
       id=preferredId;
-    } else { 
-      for (var k in wf){ 
-        var n=wf[k]; 
-        if(n && n.class_type==="CLIPTextEncode" && n.inputs && n.inputs.hasOwnProperty("text")){ 
-          id=k; 
-          break; 
+    } else {
+      for (var k in wf){
+        if(isPromptNode(wf[k])){
+          id=k;
+          break;
         }
       }
     }
     if (!id) die("No CLIPTextEncode node with 'text' input.");
-    wf[id].inputs.text = text; 
+    setPromptText(wf[id], text);
     return id;
   }
-  
+
   function findNegativePromptNode(wf, positiveNodeId){
     var foundNodes = [];
     for (var k in wf){
-      var n=wf[k];
-      if(n && n.class_type==="CLIPTextEncode" && n.inputs && n.inputs.hasOwnProperty("text")){
-        foundNodes.push(k);
-      }
+      if(isPromptNode(wf[k])) foundNodes.push(k);
     }
     if (foundNodes.length > 1){
       for (var i=0; i<foundNodes.length; i++){
@@ -481,22 +592,21 @@
     }
     return null;
   }
-  
+
   function hasNegativePromptNode(wf){
     var count = 0;
     for (var k in wf){
-      var n=wf[k];
-      if(n && n.class_type==="CLIPTextEncode" && n.inputs && n.inputs.hasOwnProperty("text")){
+      if(isPromptNode(wf[k])){
         count++;
         if (count > 1) return true;
       }
     }
     return false;
   }
-  
+
   function injectNegativePrompt(wf, text, negNodeId){
     if (!negNodeId || !wf[negNodeId]) return false;
-    wf[negNodeId].inputs.text = text;
+    setPromptText(wf[negNodeId], text);
     return true;
   }
   
@@ -543,7 +653,7 @@
   function applyDims(wf, w, h){
     var touched=[];
     // Only modify nodes that generate or manipulate latent dimensions
-    var targetTypes = ["EmptyLatentImage", "LatentUpscale", "LatentUpscaleBy"];
+    var targetTypes = ["EmptyLatentImage", "EmptySD3LatentImage", "LatentUpscale", "LatentUpscaleBy"];
     
     for (var k in wf){
       var n=wf[k]; 
@@ -703,6 +813,10 @@
         model = n.inputs.ckpt_name;
         break;
       }
+      if (ct === "UNETLoader" && n.inputs.unet_name) {
+        model = n.inputs.unet_name;
+        break;
+      }
     }
 
     for (var s in wf){
@@ -795,7 +909,7 @@
   var wfPath = wfGrp.add("edittext", undefined, savedSettings.workflow); 
   wfPath.characters = 40; 
   wfPath.enabled=false;
-  var wfBtn = wfGrp.add("button", undefined, "Choose…");
+  var wfBtn = wfGrp.add("button", undefined, "Choose...");
   
   // Cached workflows dropdown
   var cacheGrp = win.add("group");
@@ -829,6 +943,18 @@
   negPrompt.preferredSize = [undefined, 40];
   negPrompt.enabled = false;
   negPromptPanel.visible = false;
+
+  // Footer (placed early so it is always visible)
+  var foot = win.add("group"); 
+  foot.orientation="row"; 
+  foot.alignment=["fill","top"];
+  var genBtn = foot.add("button", undefined, "Generate");
+  var cancelBtn = foot.add("button", undefined, "Cancel"); 
+  cancelBtn.enabled=false;
+  var logBtn = foot.add("button", undefined, "View Log");
+  logBtn.preferredSize = [70, undefined];
+  var statusTxt = foot.add("statictext", undefined, "Idle"); 
+  statusTxt.alignment=["right","center"];
 
   // Sampling
   var sampPanel = win.add("panel", undefined, "Sampling");
@@ -881,7 +1007,7 @@
   sizeRow.orientation="row";
   var wEdit = sizeRow.add("edittext", undefined, "0"); 
   wEdit.characters=5;
-  sizeRow.add("statictext", undefined, "×");
+  sizeRow.add("statictext", undefined, "x");
   var hEdit = sizeRow.add("edittext", undefined, "0"); 
   hEdit.characters=5;
   sizeRow.add("statictext", undefined, " Snap:");
@@ -901,9 +1027,10 @@
   
   var seedRow1 = seedPanel.add("group"); 
   seedRow1.orientation="row";
-  var rbFixed  = seedRow1.add("radiobutton", undefined, "Fixed"); 
-  rbFixed.value=true;
-  var rbRandom = seedRow1.add("radiobutton", undefined, "Random per run");
+  var rbFixed     = seedRow1.add("radiobutton", undefined, "Fixed");
+  rbFixed.value = true;
+  var rbRandom    = seedRow1.add("radiobutton", undefined, "Random per run");
+  var rbIncrement = seedRow1.add("radiobutton", undefined, "Increment");
   var seedRow2 = seedPanel.add("group"); 
   seedRow2.orientation="row";
   seedRow2.add("statictext", undefined, "Seed:");
@@ -928,18 +1055,6 @@
   outputFolderPath.preferredSize.width = 200;
   var chooseFolderBtn = folderRow.add("button", undefined, "Choose...");
   chooseFolderBtn.preferredSize.width = 70;
-
-  // Footer
-  var foot = win.add("group"); 
-  foot.orientation="row"; 
-  foot.alignment=["fill","bottom"];
-  var genBtn = foot.add("button", undefined, "Generate");
-  var cancelBtn = foot.add("button", undefined, "Cancel"); 
-  cancelBtn.enabled=false;
-  var logBtn = foot.add("button", undefined, "View Log");
-  logBtn.preferredSize = [70, undefined];
-  var statusTxt = foot.add("statictext", undefined, "Idle"); 
-  statusTxt.alignment=["right","center"];
 
   // ====== UI wiring ======
   function uInt(v, def){ 
@@ -980,34 +1095,23 @@
 
   function setGenEnabled(){
     var ok = (wfPath.text && wfPath.text.length>0);
-    log("setGenEnabled: workflow=" + (ok?"yes":"no"));
     
     if (ok){
       ok = ok && (hostEdit.text.replace(/\s+/g,"").length>0);
-      log("setGenEnabled: host=" + (ok?"yes":"no"));
       ok = ok && (portEdit.text.replace(/\s+/g,"").length>0);
-      log("setGenEnabled: port=" + (ok?"yes":"no"));
-      var comp = activeComp(); 
-      ok = ok && !!comp;
-      log("setGenEnabled: comp=" + (ok?"yes":"no"));
+      ok = ok && !!activeComp();
       
       // Check if we're using text layers or prompt text
-      if (useAllTextLayers.value) {
-        // Text layer mode - just need a comp (will find enabled text layers automatically)
-        log("setGenEnabled: text layer mode, comp present=" + (ok?"yes":"no"));
-      } else {
-        // Need prompt text
+      if (!useAllTextLayers.value) {
         ok = ok && (promptText.text && promptText.text.replace(/\s+/g,"").length > 0);
-        log("setGenEnabled: prompt mode, text present=" + (ok?"yes":"no"));
       }
     }
-    log("setGenEnabled: FINAL=" + (ok?"ENABLED":"DISABLED"));
     genBtn.enabled = ok;
   }
 
-  function seedRefresh(){ 
-    seedEdit.enabled = rbFixed.value;
-    variationsEdit.enabled = rbRandom.value;
+  function seedRefresh(){
+    seedEdit.enabled = rbFixed.value || rbIncrement.value;
+    variationsEdit.enabled = rbRandom.value || rbIncrement.value;
   }
   
   function denSyncFromSlider(){ 
@@ -1122,7 +1226,7 @@
         } catch(e) {
           statusTxt.text = "Error loading workflow";
           log("Error analyzing workflow: " + e);
-          alert("Error loading workflow: " + e.message);
+          statusTxt.text = "Error loading workflow";
         } finally {
           try { wfFile.close(); } catch(e) {}
         }
@@ -1207,38 +1311,8 @@
         log("Warning: No sampler node found in workflow");
       }
       
-      // Check for negative prompt support (need to reload workflow file)
-      var wfFile2 = new File(f.fsName);
-      try {
-        if (wfFile2.exists && wfFile2.open("r")) {
-          var wfText2 = wfFile2.read();
-          var workflow2 = JSON.parse(wfText2);
-          
-          // Show settings panels
-          sampPanel.visible = true;
-          sizePanel.visible = true;
-          seedPanel.visible = true;
-          
-          if (hasNegativePromptNode(workflow2)) {
-            negPromptPanel.visible = true;
-            negPrompt.enabled = true;
-            log("Workflow has negative prompt support");
-          } else {
-            negPromptPanel.visible = false;
-            negPrompt.enabled = false;
-            log("Workflow has no negative prompt support");
-          }
-        }
-      } catch(e) {
-        log("Error checking negative prompt: " + e);
-      } finally {
-        try { wfFile2.close(); } catch(e) {}
-      }
-      
       statusTxt.text = cachedInfo ? "Workflow loaded (cached)" : "Workflow loaded";
-      win.layout.layout(true);
-      
-      setGenEnabled();
+      updateWorkflowUI(f.fsName);
     } catch(e) {
       statusTxt.text = "Error";
       log("Error in workflow selection: " + e);
@@ -1252,7 +1326,8 @@
     var selectedName = wfDropdown.selection.text;
     if (selectedName === "(No cached workflows)") return;
     
-    var cachedInfo = workflowCache[selectedName];
+    // Lazy-load the full entry from disk on demand
+    var cachedInfo = loadWorkflowEntry(selectedName);
     if (!cachedInfo) return;
     
     try {
@@ -1263,31 +1338,8 @@
       statusTxt.text = "Loading cached workflow...";
       
       if (applyCachedWorkflowSettings(cachedInfo)) {
-        // Load workflow to check for negative prompt
-        var wfFile = new File(cachedInfo.path);
-        if (wfFile.exists && wfFile.open("r")) {
-          var wfText = wfFile.read();
-          var workflow = JSON.parse(wfText);
-          
-          // Show settings panels
-          sampPanel.visible = true;
-          sizePanel.visible = true;
-          seedPanel.visible = true;
-          
-          if (hasNegativePromptNode(workflow)) {
-            negPromptPanel.visible = true;
-            negPrompt.enabled = true;
-          } else {
-            negPromptPanel.visible = false;
-            negPrompt.enabled = false;
-          }
-          
-          wfFile.close();
-        }
-        
         statusTxt.text = "Workflow loaded (cached)";
-        win.layout.layout(true);
-        setGenEnabled();
+        updateWorkflowUI(cachedInfo.path);
         log("Applied cached workflow: " + selectedName);
       }
     } catch(e) {
@@ -1302,8 +1354,13 @@
       var confirmed = confirm("Clear all cached workflow data?");
       if (!confirmed) return;
       
+      // Delete individual entry files
+      for (var name in workflowIndex) {
+        if (workflowIndex[name]) deleteWorkflowEntry(name);
+      }
+      workflowIndex = {};
       workflowCache = {};
-      saveWorkflowCache();
+      saveWorkflowIndex();
       updateWorkflowDropdown();
       
       statusTxt.text = "Cache cleared";
@@ -1342,7 +1399,7 @@
   cfgSlider.onChanging = cfgSyncFromSlider; 
   cfgVal.onChange = function(){ cfgSyncFromEdit(); setGenEnabled(); };
 
-  rbFixed.onClick = rbRandom.onClick = function(){ seedRefresh(); setGenEnabled(); };
+  rbFixed.onClick = rbRandom.onClick = rbIncrement.onClick = function(){ seedRefresh(); setGenEnabled(); };
   seedEdit.onChanging = setGenEnabled;
   
   promptText.onChanging = setGenEnabled;
@@ -1394,26 +1451,36 @@
     
     try {
       if (app.isWatchFolder) return;
+      if (!win || !win.visible) return;
       
       var currentComp = app.project.activeItem;
-      if (!currentComp || !(currentComp instanceof CompItem)) return;
+      var hasComp = (currentComp && currentComp instanceof CompItem);
+      
+      if (!hasComp) {
+        // No comp open -- update button state if it changed
+        if (lastActiveComp !== null) {
+          lastActiveComp = null;
+          lastCompSize = null;
+          try { setGenEnabled(); } catch(e) {}
+        }
+        return;
+      }
       
       var currentCompId = currentComp.id;
       var currentSize = currentComp.width + "x" + currentComp.height;
-      
-      if (!win || !win.visible) return;
       
       if (currentCompId !== lastActiveComp) {
         lastActiveComp = currentCompId;
         lastCompSize = currentSize;
         
-        if (useComp && useComp.value && typeof refreshCompDims === 'function') {
+        if (useComp && useComp.value) {
           try { refreshCompDims(); } catch(e) {}
         }
+        try { setGenEnabled(); } catch(e) {}
       } else if (currentSize !== lastCompSize) {
         lastCompSize = currentSize;
         
-        if (useComp && useComp.value && typeof refreshCompDims === 'function') {
+        if (useComp && useComp.value) {
           try { refreshCompDims(); } catch(e) {}
         }
       }
@@ -1423,9 +1490,21 @@
   startCompMonitoring();
   lastActiveComp = activeComp() ? activeComp().id : null;
 
-  // Initialize workflow cache
-  workflowCache = loadWorkflowCache();
+  // Initialize workflow cache index (lightweight -- only names/paths/timestamps)
+  workflowIndex = loadWorkflowIndex();
   updateWorkflowDropdown();
+
+  // Restore workflow UI from saved settings + cache
+  if (savedSettings.workflow) {
+    var startupName = getWorkflowName(savedSettings.workflow);
+    if (startupName && workflowIndex[startupName]) {
+      var startupEntry = loadWorkflowEntry(startupName);
+      if (startupEntry) {
+        try { applyCachedWorkflowSettings(startupEntry); } catch(e) { log("Startup cache apply error: " + e); }
+      }
+    }
+    try { updateWorkflowUI(savedSettings.workflow); } catch(e) { log("Startup UI restore error: " + e); }
+  }
 
   win.onClose = function() {
     stopCompMonitoring();
@@ -1482,7 +1561,7 @@
       var cfg = uNum(cfgVal.text, 7.0);
       var sampler = ddSampler.selection ? ddSampler.selection.text : "euler";
       var scheduler = ddScheduler.selection ? ddScheduler.selection.text : "none";
-      var useSeed = rbFixed.value ? uInt(seedEdit.text, rand32()) : null;
+      var useSeed = (rbFixed.value || rbIncrement.value) ? uInt(seedEdit.text, rand32()) : null;
 
       var comp = activeComp(); 
       if(!comp) die("No active comp");
@@ -1520,7 +1599,7 @@
 
       // Save project
       if (app.project.file && app.project.dirty) {
-        statusTxt.text = "Saving project…";
+        statusTxt.text = "Saving project...";
         log("Saving project");
         app.project.save();
       }
@@ -1555,7 +1634,7 @@
       var failCount = 0;
       
       // Get number of variations
-      var numVariations = rbRandom.value ? Math.max(1, uInt(variationsEdit.text, 1)) : 1;
+      var numVariations = (rbRandom.value || rbIncrement.value) ? Math.max(1, uInt(variationsEdit.text, 1)) : 1;
       log("Variations: " + numVariations);
       
       // If text layer mode, do all layers per variation
@@ -1568,7 +1647,7 @@
         }
         
         // For text layer mode with random seed: generate new seed for each variation
-        var variationSeed = useSeed != null ? useSeed : rand32();
+        var variationSeed = useSeed != null ? (rbIncrement.value ? useSeed + varIdx : useSeed) : rand32();
         log("Variation " + (varIdx + 1) + "/" + numVariations + " | Seed: " + variationSeed);
 
         for (var idx = targets.length - 1; idx >= 0; idx--) {
@@ -1584,7 +1663,7 @@
 
           var totalOps = targets.length * numVariations;
           var currentOp = (varIdx * targets.length) + (targets.length - idx);
-          statusTxt.text = "Processing " + currentOp + "/" + totalOps + "…";
+          statusTxt.text = "Processing " + currentOp + "/" + totalOps + "...";
           log("Processing: " + (layer ? layer.name : "prompt") + " (var " + (varIdx+1) + ")");
 
           try {
@@ -1641,7 +1720,7 @@
           var q = "/view?filename=" + encodeURIComponent(fileInfo.filename) +
                   "&subfolder=" + encodeURIComponent(fileInfo.subfolder || "") +
                   "&type=" + encodeURIComponent(fileInfo.type || "output");
-          var outFile = new File(outputFolder.fsName + "/comfy_" + pid + "_" + fileInfo.filename);
+          var outFile = new File(outputFolder.fsName + "/" + fileInfo.filename);
           httpDownloadToFile(q, outFile, host, port);
 
           var io = new ImportOptions(outFile);
@@ -1668,6 +1747,11 @@
           
           fitLayerToComp(imgLayer, comp);
 
+          if (app.project.file) {
+            app.project.save();
+            log("Project saved after image");
+          }
+
           successCount++;
           log("Success: " + (layer ? layer.name : "prompt"));
 
@@ -1692,9 +1776,8 @@
       alert(resultMsg);
 
     } catch(e){
-      statusTxt.text = "Error";
+      statusTxt.text = "Error: " + e.message;
       log("ERROR: " + e.toString());
-      alert("Error: " + e.message + "\n\nLog: " + LOG.fsName);
     } finally {
       if (win && win.visible) {
         setEnabled(true);
@@ -1705,7 +1788,7 @@
 
   cancelBtn.onClick = function(){
     stopRequested = true;
-    statusTxt.text = "Canceling…";
+    statusTxt.text = "Canceling...";
   };
 
   function setEnabled(flag){
@@ -1723,11 +1806,7 @@
     }
     
     if (flag) {
-      if (baseWorkflow && hasNegativePromptNode(baseWorkflow)) {
-        negPrompt.enabled = true;
-      } else {
-        negPrompt.enabled = false;
-      }
+      negPrompt.enabled = negPromptPanel.visible;
       // Respect prompt mode toggle
       updatePromptMode();
       // Respect seed mode
