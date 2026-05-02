@@ -43,7 +43,7 @@ A ScriptUI panel that brings text-to-image AI generation directly into Adobe Aft
 
 2. **Configure Connection**:
    - Host: `127.0.0.1` (default)
-   - Port: `8188` (ComfyUI default)
+   - Port: `8000` (ComfyUI default)
 
 3. **Select Workflow**:
    - Click **Choose...** to select your ComfyUI API workflow JSON
