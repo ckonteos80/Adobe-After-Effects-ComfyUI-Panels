@@ -481,11 +481,61 @@
     var r = httpRequest("POST", "/prompt", {"Content-Type":"application/json"}, payload, false, false, host, port);
     try { return JSON.parse(r.body); } catch(e){ die("JSON parse error from POST /prompt", r.body); }
   }
-  
+
+  function httpGetQueue(host, port){
+    var r = httpRequest("GET", "/queue", {"Accept":"application/json"}, null, false, true, host, port);
+    if (r.status !== 200 || !r.body) return null;
+    try { return JSON.parse(r.body); } catch(e){ return null; }
+  }
+
+  // Blocks until ComfyUI queue is completely empty (nothing running, nothing pending).
+  // Returns false if cancelled by user.
+  function waitForComfyReady(host, port){
+    while(true){
+      if (stopRequested) return false;
+      try {
+        var q = httpGetQueue(host, port);
+        if (q) {
+          var running = q.queue_running ? q.queue_running.length : 0;
+          var pending = q.queue_pending ? q.queue_pending.length : 0;
+          if (running === 0 && pending === 0) {
+            log("ComfyUI queue clear");
+            return true;
+          }
+          log("Waiting for queue: " + running + " running, " + pending + " pending");
+        }
+      } catch(e) {
+        log("Queue check error (will retry): " + e.message);
+      }
+      sleep(POLL_MS);
+    }
+  }
+
+  // Confirms a submitted prompt_id actually appears in the ComfyUI queue or history.
+  // Guards against the case where POST succeeded but we never got the response.
+  function verifyPromptQueued(promptId, host, port){
+    try {
+      var q = httpGetQueue(host, port);
+      if (q) {
+        var allItems = (q.queue_running || []).concat(q.queue_pending || []);
+        for (var i = 0; i < allItems.length; i++) {
+          if (allItems[i] && allItems[i][1] === promptId) return true;
+        }
+      }
+      // Also check history in case it was processed instantly
+      var hist = httpHistoryMaybe(promptId, host, port);
+      if (hist && hist[promptId]) return true;
+    } catch(e) {}
+    return false;
+  }
+
   function httpHistoryMaybe(promptId, host, port){
     var r = httpRequest("GET", "/history/" + promptId, {"Accept":"application/json"}, null, false, true, host, port);
     if (r.status !== 200 || !r.body) return null;
-    try { return JSON.parse(r.body); } catch(e){ die("JSON parse error from /history/"+promptId, r.body); }
+    try { return JSON.parse(r.body); } catch(e){
+      log("History parse error (will retry): " + r.body.substring(0, 100));
+      return null;
+    }
   }
   
   function httpDownloadToFile(path, outFile, host, port){
@@ -563,45 +613,77 @@
     }
   }
 
-  function injectPrompt(wf, text, preferredId){
-    var id=null;
-    if (preferredId && wf[preferredId] && isPromptNode(wf[preferredId])) {
-      id=preferredId;
-    } else {
-      for (var k in wf){
-        if(isPromptNode(wf[k])){
-          id=k;
-          break;
+  // Identifies the positive and negative prompt node IDs using three approaches
+  // in order of reliability:
+  //   1. Sampler connections — any node with inputs.positive / inputs.negative
+  //   2. _meta.title — title containing "negative" (case-insensitive)
+  //   3. Iteration-order fallback — first found = positive, second = negative
+  function resolvePromptNodes(wf){
+    var positiveId = null;
+    var negativeId = null;
+
+    // --- Approach 1: sampler connection tracing ---
+    for (var sk in wf){
+      var sn = wf[sk];
+      if (!sn || !sn.inputs) continue;
+      var posRef = sn.inputs.positive;
+      var negRef = sn.inputs.negative;
+      if (posRef instanceof Array && negRef instanceof Array &&
+          posRef.length >= 1 && negRef.length >= 1){
+        var posId = String(posRef[0]);
+        var negId = String(negRef[0]);
+        if (wf[posId] && isPromptNode(wf[posId])) positiveId = posId;
+        if (wf[negId] && isPromptNode(wf[negId])) negativeId = negId;
+        if (positiveId) {
+          log("Prompt nodes via sampler: pos=" + positiveId + " neg=" + (negativeId || "none"));
+          return { positiveId: positiveId, negativeId: negativeId };
         }
       }
     }
-    if (!id) die("No CLIPTextEncode node with 'text' input.");
+
+    // --- Approach 2: _meta.title ---
+    for (var tk in wf){
+      if (!isPromptNode(wf[tk])) continue;
+      var title = (wf[tk]._meta && wf[tk]._meta.title) ? String(wf[tk]._meta.title) : "";
+      if (/negative/i.test(title)){
+        negativeId = tk;
+      } else {
+        if (!positiveId) positiveId = tk;
+      }
+    }
+    if (positiveId){
+      log("Prompt nodes via title: pos=" + positiveId + " neg=" + (negativeId || "none"));
+      return { positiveId: positiveId, negativeId: negativeId };
+    }
+
+    // --- Approach 3: iteration-order fallback ---
+    for (var fk in wf){
+      if (!isPromptNode(wf[fk])) continue;
+      if (!positiveId)      { positiveId = fk; }
+      else if (!negativeId) { negativeId = fk; break; }
+    }
+    log("Prompt nodes via fallback: pos=" + (positiveId || "none") + " neg=" + (negativeId || "none"));
+    return { positiveId: positiveId, negativeId: negativeId };
+  }
+
+  function injectPrompt(wf, text, preferredId){
+    var id = null;
+    if (preferredId && wf[preferredId] && isPromptNode(wf[preferredId])){
+      id = preferredId;
+    } else {
+      id = resolvePromptNodes(wf).positiveId;
+    }
+    if (!id) die("No prompt node found in workflow.");
     setPromptText(wf[id], text);
     return id;
   }
 
   function findNegativePromptNode(wf, positiveNodeId){
-    var foundNodes = [];
-    for (var k in wf){
-      if(isPromptNode(wf[k])) foundNodes.push(k);
-    }
-    if (foundNodes.length > 1){
-      for (var i=0; i<foundNodes.length; i++){
-        if (foundNodes[i] !== positiveNodeId) return foundNodes[i];
-      }
-    }
-    return null;
+    return resolvePromptNodes(wf).negativeId || null;
   }
 
   function hasNegativePromptNode(wf){
-    var count = 0;
-    for (var k in wf){
-      if(isPromptNode(wf[k])){
-        count++;
-        if (count > 1) return true;
-      }
-    }
-    return false;
+    return !!(resolvePromptNodes(wf).negativeId);
   }
 
   function injectNegativePrompt(wf, text, negNodeId){
@@ -611,27 +693,29 @@
   }
   
   function setSamplerParams(wf, params){
+    var samplerNodeId = null;
     for (var k in wf){
-      var n=wf[k]; 
+      var n=wf[k];
       if(!n || !n.inputs) continue;
-      var ct=String(n.class_type||""); 
-      
-      // Match both basic and advanced samplers
-      if (ct === "KSampler" || ct === "KSamplerAdvanced" || /Sampler/i.test(ct)) {
+      var ct=String(n.class_type||"");
+
+      // Match both basic and advanced samplers (take first hit only)
+      if (!samplerNodeId && (ct === "KSampler" || ct === "KSamplerAdvanced" || /Sampler/i.test(ct))) {
+        samplerNodeId = k;
         // Common parameters for all samplers
-        if (params.seed!=null && n.inputs.hasOwnProperty("seed")) 
+        if (params.seed!=null && n.inputs.hasOwnProperty("seed"))
           n.inputs.seed = params.seed>>>0;
-        if (params.steps!=null && n.inputs.hasOwnProperty("steps")) 
+        if (params.steps!=null && n.inputs.hasOwnProperty("steps"))
           n.inputs.steps = params.steps|0;
-        if (params.cfg!=null && n.inputs.hasOwnProperty("cfg")) 
+        if (params.cfg!=null && n.inputs.hasOwnProperty("cfg"))
           n.inputs.cfg = Number(params.cfg);
-        if (params.sampler && n.inputs.hasOwnProperty("sampler_name")) 
+        if (params.sampler && n.inputs.hasOwnProperty("sampler_name"))
           n.inputs.sampler_name = params.sampler;
-        if (params.scheduler && n.inputs.hasOwnProperty("scheduler")) 
+        if (params.scheduler && n.inputs.hasOwnProperty("scheduler"))
           n.inputs.scheduler = params.scheduler;
-        if (params.denoise!=null && n.inputs.hasOwnProperty("denoise")) 
+        if (params.denoise!=null && n.inputs.hasOwnProperty("denoise"))
           n.inputs.denoise = Number(params.denoise);
-        
+
         // Advanced KSampler parameters - only modify if explicitly provided
         if (ct === "KSamplerAdvanced") {
           if (params.hasOwnProperty("add_noise") && n.inputs.hasOwnProperty("add_noise"))
@@ -643,36 +727,48 @@
           if (params.hasOwnProperty("return_with_leftover_noise") && n.inputs.hasOwnProperty("return_with_leftover_noise"))
             n.inputs.return_with_leftover_noise = params.return_with_leftover_noise;
         }
-        
-        return k;
+        // Do NOT return here — continue the loop so RandomNoise is also processed
+        continue;
+      }
+
+      // Handle RandomNoise node used by SamplerCustomAdvanced workflows (e.g. Flux)
+      // Use the seed directly — RandomNoise accepts 64-bit values, >>> 0 would truncate them
+      if (ct === "RandomNoise" && params.seed != null) {
+        n.inputs.noise_seed = params.seed;
       }
     }
-    return null;
+    return samplerNodeId;
   }
   
   function applyDims(wf, w, h){
     var touched=[];
-    // Only modify nodes that generate or manipulate latent dimensions
-    var targetTypes = ["EmptyLatentImage", "EmptySD3LatentImage", "LatentUpscale", "LatentUpscaleBy"];
-    
+    var targetTypes = [
+      "EmptyLatentImage",
+      "EmptySD3LatentImage",
+      "EmptyFlux2LatentImage",
+      "Flux2Scheduler",
+      "LatentUpscale",
+      "LatentUpscaleBy"
+    ];
+
     for (var k in wf){
-      var n=wf[k]; 
+      var n=wf[k];
       if(!n||!n.inputs||!n.class_type) continue;
-      
-      // Only modify specific node types to avoid breaking scale/crop nodes
+
       var isTarget = false;
       for (var i = 0; i < targetTypes.length; i++) {
-        if (n.class_type === targetTypes[i]) {
-          isTarget = true;
-          break;
-        }
+        if (n.class_type === targetTypes[i]) { isTarget = true; break; }
       }
-      
-      if (isTarget && n.inputs.hasOwnProperty("width") && n.inputs.hasOwnProperty("height")){
-        n.inputs.width=w; 
-        n.inputs.height=h; 
+      if (!isTarget) continue;
+
+      // Only overwrite plain numeric values. Array values are node-reference
+      // connections (e.g. GetImageSize) and must be left untouched.
+      if (n.inputs.hasOwnProperty("width") && n.inputs.hasOwnProperty("height") &&
+          typeof n.inputs.width === "number" && typeof n.inputs.height === "number"){
+        n.inputs.width  = w;
+        n.inputs.height = h;
         touched.push(k);
-        log("Applied dims to " + n.class_type + " node: " + w + "x" + h);
+        log("Applied dims to " + n.class_type + " node " + k + ": " + w + "x" + h);
       }
     }
     return touched;
@@ -749,7 +845,19 @@
         info.currentValues.seed = samplerNode.inputs.seed;
       }
     }
-    
+
+    // For SamplerCustomAdvanced (Flux) workflows the seed lives in a separate RandomNoise node
+    if (info.currentValues.seed === null) {
+      for (var rk in workflow) {
+        if (workflow[rk] && workflow[rk].class_type === "RandomNoise" &&
+            workflow[rk].inputs && workflow[rk].inputs.noise_seed !== undefined) {
+          info.currentValues.seed = workflow[rk].inputs.noise_seed;
+          info.hasSeed = true;
+          break;
+        }
+      }
+    }
+
     var required = nodeDef.input.required;
     
     if (required.sampler_name && required.sampler_name[0] instanceof Array) {
@@ -1690,28 +1798,51 @@
           
           setSamplerParams(wf, samplerParams);
 
+          // Step 1: Wait for ComfyUI to be fully idle before submitting
+          statusTxt.text = "Waiting for ComfyUI...";
+          if (!waitForComfyReady(host, port)) throw new Error("Canceled by user");
+
+          // Step 2: Submit the prompt
+          statusTxt.text = "Submitting prompt...";
           var post = httpPostJSONPrompt(wf, host, port);
           if (!post || !post.prompt_id) die("Unexpected /prompt response");
-          var pid = post.prompt_id;
-          log("Prompt ID: " + pid);
 
+          // Report any workflow node errors immediately
+          if (post.node_errors && post.node_errors.length > 0) {
+            die("Workflow node errors: " + JSON.stringify(post.node_errors));
+          }
+
+          var pid = post.prompt_id;
+          log("Prompt ID: " + pid + " (queue position: " + post.number + ")");
+
+          // Step 3: Verify the prompt actually landed in ComfyUI's queue
+          if (!verifyPromptQueued(pid, host, port)) {
+            die("Prompt was not found in ComfyUI queue after submission");
+          }
+          log("Prompt confirmed in queue");
+
+          // Step 4: Poll history until generation is complete
+          statusTxt.text = "Generating...";
           var fileInfo=null;
           while(true){
             if (stopRequested) throw new Error("Canceled by user");
-            
-            var hist = httpHistoryMaybe(pid, host, port);
-            if (hist){
-              var rec=hist[pid];
-              if (rec && rec.outputs){
-                for (var k in rec.outputs){
-                  var out = rec.outputs[k];
-                  if (out && out.images && out.images.length>0){ 
-                    fileInfo = out.images[0]; 
-                    break; 
+            try {
+              var hist = httpHistoryMaybe(pid, host, port);
+              if (hist){
+                var rec=hist[pid];
+                if (rec && rec.outputs){
+                  for (var k in rec.outputs){
+                    var out = rec.outputs[k];
+                    if (out && out.images && out.images.length>0){
+                      fileInfo = out.images[0];
+                      break;
+                    }
                   }
+                  if (fileInfo) break;
                 }
-                if (fileInfo) break;
               }
+            } catch(pollErr) {
+              log("Poll error (will retry): " + pollErr.message);
             }
             sleep(POLL_MS);
           }
@@ -1747,6 +1878,7 @@
           
           fitLayerToComp(imgLayer, comp);
 
+          // Step 5: Save AE project
           if (app.project.file) {
             app.project.save();
             log("Project saved after image");
@@ -1754,6 +1886,15 @@
 
           successCount++;
           log("Success: " + (layer ? layer.name : "prompt"));
+
+          // Step 6: Wait for ComfyUI to fully finish before the next submission.
+          // The job has left the queue (moved to history) but ComfyUI may still be
+          // transitioning the model. This prevents the next POST from hitting a
+          // briefly unresponsive server.
+          if (idx > 0 || varIdx < numVariations - 1) {
+            statusTxt.text = "Waiting for ComfyUI to settle...";
+            waitForComfyReady(host, port);
+          }
 
         } catch(e) {
           failCount++;
