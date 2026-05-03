@@ -123,13 +123,13 @@
             // Try to extract from API prompt first (more structured)
             if (prompt) {
                 try {
+                    // Pass 1: KSampler / KSamplerAdvanced wins for sampler params
                     for (var nodeId in prompt) {
                         if (!prompt.hasOwnProperty(nodeId)) continue;
                         var node = prompt[nodeId];
                         var inputs = node.inputs || {};
                         var classType = node.class_type || "";
                         
-                        // KSampler or KSamplerAdvanced
                         if (classType === "KSampler" || classType === "KSamplerAdvanced") {
                             if (inputs.seed !== undefined) seedTxt.text = String(inputs.seed);
                             if (inputs.steps !== undefined) stepsTxt.text = String(inputs.steps);
@@ -138,23 +138,67 @@
                             if (inputs.scheduler !== undefined) schedulerTxt.text = String(inputs.scheduler);
                             if (inputs.denoise !== undefined) denoiseTxt.text = String(inputs.denoise);
                         }
+                    }
+                    
+                    // Pass 2: Flux / other nodes — only fill fields still empty
+                    for (var nodeId in prompt) {
+                        if (!prompt.hasOwnProperty(nodeId)) continue;
+                        var node = prompt[nodeId];
+                        var inputs = node.inputs || {};
+                        var classType = node.class_type || "";
                         
-                        // EmptyLatentImage (for size)
-                        if (classType === "EmptyLatentImage") {
-                            if (inputs.width !== undefined && inputs.height !== undefined) {
+                        // RandomNoise: seed for Flux2 workflows
+                        if (classType === "RandomNoise") {
+                            if (!seedTxt.text && inputs.noise_seed !== undefined) seedTxt.text = String(inputs.noise_seed);
+                        }
+                        
+                        // KSamplerSelect and other *Sampler* nodes: sampler fallback
+                        if (classType !== "KSampler" && classType !== "KSamplerAdvanced" && /Sampler/i.test(classType)) {
+                            if (!samplerTxt.text && inputs.sampler_name !== undefined) samplerTxt.text = String(inputs.sampler_name);
+                        }
+                        
+                        // Flux2Scheduler: steps + size
+                        if (classType === "Flux2Scheduler") {
+                            if (!stepsTxt.text && inputs.steps !== undefined) stepsTxt.text = String(inputs.steps);
+                            if (!sizeTxt.text && inputs.width !== undefined && inputs.height !== undefined &&
+                                typeof inputs.width === "number" && typeof inputs.height === "number") {
                                 sizeTxt.text = inputs.width + " x " + inputs.height;
                             }
                         }
                         
-                        // CheckpointLoaderSimple
-                        if (classType === "CheckpointLoaderSimple" || classType === "CheckpointLoader") {
-                            if (inputs.ckpt_name !== undefined) modelTxt.text = String(inputs.ckpt_name);
+                        // Latent image nodes: size
+                        if (classType === "EmptyLatentImage" || classType === "EmptySD3LatentImage" || classType === "EmptyFlux2LatentImage") {
+                            if (!sizeTxt.text && inputs.width !== undefined && inputs.height !== undefined) {
+                                sizeTxt.text = inputs.width + " x " + inputs.height;
+                            }
                         }
                         
-                        // CLIPTextEncode for prompts
+                        // LatentUpscale / LatentUpscaleBy: size fallback
+                        if (classType === "LatentUpscale" || classType === "LatentUpscaleBy") {
+                            if (!sizeTxt.text && inputs.width !== undefined && inputs.height !== undefined) {
+                                sizeTxt.text = inputs.width + " x " + inputs.height;
+                            }
+                        }
+                        
+                        // Checkpoint loaders: model
+                        if (classType === "CheckpointLoaderSimple" || classType === "CheckpointLoader") {
+                            if (!modelTxt.text && inputs.ckpt_name !== undefined) modelTxt.text = String(inputs.ckpt_name);
+                        }
+                        
+                        // UNETLoader: model fallback for Flux
+                        if (classType === "UNETLoader") {
+                            if (!modelTxt.text && inputs.unet_name !== undefined) modelTxt.text = String(inputs.unet_name);
+                        }
+                        
+                        // CLIPTextEncodeFlux: positive prompt for Flux1
+                        if (classType === "CLIPTextEncodeFlux") {
+                            var text = String(inputs.clip_l || "");
+                            if (text && !posTxt.text) posTxt.text = text;
+                        }
+                        
+                        // CLIPTextEncode: positive / negative
                         if (classType === "CLIPTextEncode") {
                             var text = String(inputs.text || "");
-                            // Try to determine if positive or negative by content or position
                             if (text && !posTxt.text) {
                                 posTxt.text = text;
                             } else if (text && !negTxt.text) {
@@ -165,7 +209,7 @@
                 } catch(e) {}
             }
             
-            // If prompt extraction failed, try workflow
+            // If prompt extraction failed, try workflow (UI format)
             if (workflow && !seedTxt.text) {
                 try {
                     var nodes = workflow.nodes || [];
@@ -174,25 +218,57 @@
                         var type = node.type || "";
                         var widgets = node.widgets_values || [];
                         
+                        // KSampler / KSamplerAdvanced
+                        // widgets: [seed, control_after_generate, steps, cfg, sampler_name, scheduler, denoise]
                         if (type === "KSampler" || type === "KSamplerAdvanced") {
-                            if (widgets.length >= 6) {
+                            if (widgets.length >= 7) {
                                 if (!seedTxt.text) seedTxt.text = String(widgets[0]);
-                                if (!stepsTxt.text) stepsTxt.text = String(widgets[3]);
-                                if (!cfgTxt.text) cfgTxt.text = String(widgets[4]);
-                                if (!samplerTxt.text) samplerTxt.text = String(widgets[1]);
-                                if (!schedulerTxt.text) schedulerTxt.text = String(widgets[2]);
-                                if (!denoiseTxt.text) denoiseTxt.text = String(widgets[5]);
+                                if (!stepsTxt.text) stepsTxt.text = String(widgets[2]);
+                                if (!cfgTxt.text) cfgTxt.text = String(widgets[3]);
+                                if (!samplerTxt.text) samplerTxt.text = String(widgets[4]);
+                                if (!schedulerTxt.text) schedulerTxt.text = String(widgets[5]);
+                                if (!denoiseTxt.text) denoiseTxt.text = String(widgets[6]);
                             }
                         }
                         
-                        if (type === "EmptyLatentImage" && widgets.length >= 2) {
+                        // RandomNoise: [noise_seed, control_after_generate]
+                        if (type === "RandomNoise" && widgets.length >= 1) {
+                            if (!seedTxt.text) seedTxt.text = String(widgets[0]);
+                        }
+                        
+                        // KSamplerSelect: [sampler_name]
+                        if (type === "KSamplerSelect" && widgets.length >= 1) {
+                            if (!samplerTxt.text) samplerTxt.text = String(widgets[0]);
+                        }
+                        
+                        // Flux2Scheduler: [steps, width, height]
+                        if (type === "Flux2Scheduler" && widgets.length >= 3) {
+                            if (!stepsTxt.text) stepsTxt.text = String(widgets[0]);
+                            if (!sizeTxt.text) sizeTxt.text = widgets[1] + " x " + widgets[2];
+                        }
+                        
+                        // Latent image nodes: [width, height, batch_size]
+                        if ((type === "EmptyLatentImage" || type === "EmptySD3LatentImage" || type === "EmptyFlux2LatentImage") && widgets.length >= 2) {
                             if (!sizeTxt.text) sizeTxt.text = widgets[0] + " x " + widgets[1];
                         }
                         
+                        // Checkpoint loaders: [ckpt_name]
                         if ((type === "CheckpointLoaderSimple" || type === "CheckpointLoader") && widgets.length >= 1) {
                             if (!modelTxt.text) modelTxt.text = String(widgets[0]);
                         }
                         
+                        // UNETLoader: [unet_name, weight_dtype]
+                        if (type === "UNETLoader" && widgets.length >= 1) {
+                            if (!modelTxt.text) modelTxt.text = String(widgets[0]);
+                        }
+                        
+                        // CLIPTextEncodeFlux: [clip_l, t5xxl, guidance]
+                        if (type === "CLIPTextEncodeFlux" && widgets.length >= 1) {
+                            var text = String(widgets[0]);
+                            if (text && !posTxt.text) posTxt.text = text;
+                        }
+                        
+                        // CLIPTextEncode: [text]
                         if (type === "CLIPTextEncode" && widgets.length >= 1) {
                             var text = String(widgets[0]);
                             if (text && !posTxt.text) {

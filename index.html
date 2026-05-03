@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -238,11 +238,14 @@
       
       <h3>📝 <a href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/tree/main/Text2Image" target="_blank">Text-to-Image Panel</a></h3>
       <ul>
-        <li>Generate AI images from text prompts directly in After Effects</li>
-        <li>Control resolution, steps, CFG, sampler, and scheduler settings</li>
-        <li>Support for positive and negative prompts</li>
-        <li>Automatic import of generated images into your AE project</li>
-        <li>Workflow caching for faster loading of previously used workflows</li>
+        <li>Generate AI images from a typed prompt or automatically from every enabled text layer in the active composition</li>
+        <li>Fixed, Random, or Increment seed modes — generate multiple variations per prompt in one click</li>
+        <li>Full parameter control: resolution, steps, CFG, sampler, scheduler, denoise, and seed</li>
+        <li>Positive and negative prompt support (auto-detected from the workflow)</li>
+        <li>Sampler and scheduler lists loaded live from your ComfyUI install via API introspection</li>
+        <li>Workflow caching — previously loaded workflows open instantly with automatic cache invalidation</li>
+        <li>Generated images are automatically imported into your AE project, sized and timed to the active composition</li>
+        <li>Tested with Flux.1, Flux.2, and Qwen Illustration LoRA workflows</li>
       </ul>
 
       <h3>🖼️ <a href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/tree/main/Image2Image" target="_blank">Image-to-Image Panel</a></h3>
@@ -256,45 +259,47 @@
 
       <h3>📊 <a href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/tree/main/JsonReader" target="_blank">JSON Metadata Reader</a></h3>
       <ul>
-        <li>Inspect ComfyUI generation metadata (seed, CFG, steps, model, etc.)</li>
-        <li>Extract workflow parameters from generated images</li>
-        <li>Log settings for reproducibility and documentation</li>
+        <li>Extracts seed, steps, CFG, sampler, scheduler, size, denoise, model, and prompts from PNG metadata</li>
+        <li>Supports standard SD, Flux.1, Flux.2, and Qwen workflows</li>
+        <li>Read from a selected footage layer in the timeline or browse any PNG on disk</li>
+        <li>Copy or save the full API-format prompt JSON for direct reuse with ComfyUI</li>
+        <li>Auto-refreshes when you select a different layer</li>
       </ul>
 
       <h3>🔧 Additional Features</h3>
       <ul>
-        <li>Works with local ComfyUI setups (default: <code>http://127.0.0.1:8188</code>)</li>
-        <li>Dynamic API introspection for sampler and scheduler options</li>
-        <li>Persistent settings and workflow caching</li>
-        <li>MIT-licensed, open for personal and commercial use</li>
+        <li>Works with local or network ComfyUI setups (default: <code>http://127.0.0.1:8188</code>)</li>
+        <li>Pure ExtendScript — no Python, no plugins, no external dependencies</li>
+        <li>Persistent settings: host, port, workflow, and output folder saved between sessions</li>
+        <li>MIT-licensed, free for personal and commercial use</li>
       </ul>
     </section>
 
     <section>
       <h2>⚙️ Installation</h2>
-      <p><strong>Step 1: Clone or download the repo</strong></p>
+      <p><strong>Step 1: Download the panel(s)</strong></p>
       <ul>
-        <li>
-          Clone with Git:
-          <code>git clone https://github.com/ckonteos80/AE-ComfyUI-Panels.git</code>
-        </li>
-        <li>Or download a ZIP from the latest release</li>
+        <li>Download <code>ComfyUI_Text2Image_v1.0.0.zip</code> and/or <code>ComfyUI_JsonReader_v1.0.0.zip</code> from the latest release</li>
+        <li>Extract the zip and locate the <code>.jsx</code> file inside</li>
       </ul>
 
-      <p><strong>Step 2: Install the panels into After Effects</strong></p>
-      <ul>
-        <li>Copy the panel scripts into your AE <code>Scripts/ScriptUI Panels/</code> folder</li>
-        <li>Restart After Effects so it can detect the new panels</li>
-        <li>Open them via <strong>Window → AE-ComfyUI Panel</strong> (or respective panel names)</li>
-      </ul>
+      <p><strong>Step 2: Install into After Effects</strong></p>
+      <ol>
+        <li>In After Effects, go to <strong>File → Scripts → Install ScriptUI Panel...</strong></li>
+        <li>Select the <code>.jsx</code> file and click Open</li>
+        <li>Restart After Effects</li>
+        <li>Open the panel via <strong>Window → ComfyUI_Text2Image.jsx</strong> or <strong>Window → ComfyUI_JsonReader.jsx</strong></li>
+      </ol>
+
+      <p><strong>Note:</strong> Enable script access if prompted — <strong>Edit → Preferences → Scripting &amp; Expressions → Allow Scripts To Write Files And Access Network</strong></p>
 
       <a
-        href="https://github.com/ckonteos80/AE-ComfyUI-Panels/releases/latest"
+        href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/releases/latest"
         target="_blank"
         class="button download"
       >⬇️ Download Latest Release</a>
       <a
-        href="https://github.com/ckonteos80/AE-ComfyUI-Panels"
+        href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels"
         target="_blank"
         class="button github"
       >💻 View Source on GitHub</a>
@@ -304,24 +309,28 @@
       <h2>▶️ Usage</h2>
       <p><strong>Text-to-Image Panel</strong></p>
       <ul>
-        <li>Open the Text2Image panel inside AE</li>
-        <li>Enter your prompt, resolution, steps, and seed values</li>
-        <li>Click <strong>Generate</strong> to send the request to ComfyUI</li>
-        <li>The generated image is imported into your project and ready to use in a comp</li>
+        <li>Start ComfyUI and open the Text2Image panel in AE via <strong>Window &rarr; ComfyUI_Text2Image.jsx</strong></li>
+        <li>Set host/port, then click <strong>Choose...</strong> to load your ComfyUI API workflow JSON</li>
+        <li>Samplers, schedulers, and parameter ranges are loaded automatically from your ComfyUI install</li>
+        <li>Enter your prompt, adjust settings, and click <strong>Generate</strong></li>
+        <li>The generated image is imported into your project and added to the active composition</li>
+        <li>Enable <strong>Use all enabled text layers</strong> to batch-generate one image per text layer in the comp</li>
       </ul>
 
       <p><strong>Image-to-Image Panel</strong></p>
       <ul>
         <li>Select an image layer in your composition</li>
-        <li>Open the Image2Image panel</li>
-        <li>Adjust denoise/strength and other settings if available</li>
-        <li>Generate variations; the results appear as new layers in your AE project</li>
+        <li>Open the Image2Image panel via <strong>Window &rarr; ComfyUI_Image2Image.jsx</strong></li>
+        <li>Adjust denoise strength and other settings</li>
+        <li>Generated variations appear as new footage items in your AE project</li>
       </ul>
 
-      <p><strong>Metadata Reader</strong></p>
+      <p><strong>JSON Metadata Reader</strong></p>
       <ul>
         <li>Use the JsonReader tools to inspect ComfyUI’s JSON output</li>
-        <li>Log or embed seed/parameter info for reproducibility</li>
+        <li>Select a ComfyUI-generated PNG layer in your timeline, then click <strong>From Selected Layer</strong></li>
+        <li>All detected generation parameters are displayed immediately</li>
+        <li>Use <strong>Copy API Prompt</strong> to copy the full JSON for reuse in ComfyUI</li>
       </ul>
     </section>
 

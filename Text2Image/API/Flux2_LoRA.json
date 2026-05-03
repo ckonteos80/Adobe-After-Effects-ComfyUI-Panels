@@ -84,7 +84,7 @@
   },
   "98:96": {
     "inputs": {
-      "lora_name": "Flux_2-Turbo-LoRA_comfyui.safetensors",
+      "lora_name": "Hammershoi_flux2.safetensors",
       "strength_model": 1,
       "strength_clip": 1,
       "model": [

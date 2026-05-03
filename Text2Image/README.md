@@ -4,6 +4,8 @@ A ScriptUI panel that brings text-to-image AI generation directly into Adobe Aft
 
 ![Text2Image Panel](https://raw.githubusercontent.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/main/Screenshots/Text2ImagePanel.jpg)
 
+**[⬇ Download latest release (v1.0.0)](https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/releases/tag/v1.0.0)**
+
 ## Features
 
 - **Text-to-Image Generation**: Generate AI images from text prompts without leaving After Effects
@@ -20,14 +22,13 @@ A ScriptUI panel that brings text-to-image AI generation directly into Adobe Aft
 
 ## Installation
 
-1. Copy `ComfyUI_Text2Image.jsx` to your After Effects Scripts folder:
-   ```
-   C:\Users\[Username]\AppData\Roaming\Adobe\After Effects\[Version]\Scripts\ScriptUI Panels\
-   ```
-   
-2. Restart After Effects
+1. In After Effects, go to **File → Scripts → Install ScriptUI Panel...**
+2. Select `ComfyUI_Text2Image.jsx` and click Open
+3. Restart After Effects
+4. Open the panel via **Window → ComfyUI_Text2Image.jsx**
 
-3. Open the panel via **Window → ComfyUI_Text2Image.jsx**
+> **Note:** Enable script access if prompted:  
+> **Edit → Preferences → Scripting & Expressions → Allow Scripts To Write Files And Access Network**
 
 ## Requirements
 

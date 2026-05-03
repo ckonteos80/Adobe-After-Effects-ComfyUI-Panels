@@ -553,6 +553,13 @@
     try { return JSON.parse(r.body); } catch(e){ log("JSON parse error from /object_info: " + e); return null; }
   }
 
+  function httpGetObjectInfoForClass(className, host, port){
+    var path = "/object_info/" + encodeURIComponent(className);
+    var r = httpRequest("GET", path, {"Accept":"application/json"}, null, false, true, host, port);
+    if (r.status !== 200 || !r.body) return null;
+    try { return JSON.parse(r.body); } catch(e){ log("JSON parse error from " + path + ": " + e); return null; }
+  }
+
   // ====== AE helpers ======
   function activeComp(){ 
     return (app.project && app.project.activeItem instanceof CompItem) ? app.project.activeItem : null; 
@@ -773,7 +780,19 @@
     }
     return touched;
   }
-  
+
+  function findSamplerClassName(workflow){
+    var fallback = null;
+    for (var nodeId in workflow){
+      var node = workflow[nodeId];
+      if (!node || !node.class_type) continue;
+      var ct = String(node.class_type);
+      if (ct === "KSampler" || ct === "KSamplerAdvanced") return ct;
+      if (!fallback && /Sampler/i.test(ct)) fallback = ct;
+    }
+    return fallback;
+  }
+
   function findSamplerNodeInfo(workflow, objectInfo){
     if (!objectInfo) return null;
     
@@ -1316,9 +1335,10 @@
             var wfText = wfFile.read();
             var workflow = JSON.parse(wfText);
             
-            // Get object info from ComfyUI
+            // Get object info from ComfyUI (fetch only the sampler class, not the full registry)
             statusTxt.text = "Loading workflow info...";
-            objectInfo = httpGetObjectInfo(host, port);
+            var samplerClass = findSamplerClassName(workflow);
+            objectInfo = samplerClass ? httpGetObjectInfoForClass(samplerClass, host, port) : null;
             
             if (objectInfo) {
               log("Got object info from ComfyUI");
