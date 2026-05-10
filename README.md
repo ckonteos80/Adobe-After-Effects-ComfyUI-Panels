@@ -1,4 +1,4 @@
-# **AE-ComfyUI-Panels**
+﻿# **AE-ComfyUI-Panels**
 
 Real-time AE → ComfyUI generative workflow
 
@@ -8,9 +8,17 @@ A streamlined AI-enhanced pipeline for motion graphics and design.
 
 ---
 
+## 🎬 **Demo**
+
+[![Watch the demo](https://img.youtube.com/vi/cnzMNZIOZq4/maxresdefault.jpg)](https://youtu.be/cnzMNZIOZq4)
+
+*Text2Image and JSON Reader panels in action*
+
+---
+
 ## 📦 **Download**
 
-*(Add a ZIP or release build here if you want, matching your other repo format)*
+**[⬇ Download latest release (v1.0.0)](https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/releases/tag/v1.0.0)**
 
 ---
 
@@ -27,26 +35,36 @@ Depending on the panel, AE can:
 
 This lets you build hybrid pipelines combining AE animation with AI-driven visuals.
 
-![Image2ImagePanel](https://github.com/user-attachments/assets/e6b77c8d-904a-48c6-9512-8705dc3a206c)
-
 ---
 
 ## ✨ **Features**
 
-* **Text2Image Panel**
-  Generate images inside AE using prompt text.
+### Text2Image Panel
+* Generate AI images from text prompts without leaving After Effects
+* **Text Layer Batch Mode** — automatically generate one image per enabled text layer in the active comp
+* **Batch Variations** — generate multiple images per prompt with Fixed, Random, or Increment seed modes
+* **Workflow Caching** — instant loading of previously used workflows with automatic cache invalidation
+* **API Introspection** — dynamically loads available samplers and schedulers from your ComfyUI instance
+* **Current Value Extraction** — pre-populates UI with the workflow's existing parameter values
+* Full parameter control: resolution, steps, CFG, sampler, scheduler, denoise, seed
+* Positive & negative prompt support (shown only when the workflow supports it)
+* Automatic import of generated images into your AE project
 
-* **Image2Image Panel**
-  Select any image layer and generate variations through ComfyUI.
+### Image2Image Panel *(work in progress)*
+* Transform any image layer in your composition using AI
+* **Smart Source Selection** — pick any image layer, with optional render-with-effects support
+* **Batch Variations** — seed increment and denoise progression in a single run
+* Full parameter control: denoise, steps, CFG, sampler, scheduler, seed, resolution
+* Automatic import of generated images into your AE project
 
-* **JSON Metadata Reader**
-  Extract seed, CFG, steps, model info, etc., from ComfyUI’s JSON outputs.
-
-* **Screenshots Folder**
-  Visual reference for UI layout and workflow.
-
-* **MIT License**
-  Fully open for personal + commercial use.
+### JSON Reader Panel
+* **Instant Metadata Reading** — fast PNG chunk parsing extracts ComfyUI data in milliseconds
+* Extracts seed, steps, CFG, sampler, scheduler, size, denoise, model, and prompts
+* **Flux Support** — reads Flux.1 and Flux.2 workflow parameters
+* **Copy / Save API Prompt** — export the full API-format JSON for reuse or resubmission
+* **Layer Integration** — read metadata directly from a selected footage layer in the active comp
+* **Auto-Refresh** — updates automatically when you select a different layer
+* No external dependencies — pure ExtendScript
 
 ---
 
@@ -55,8 +73,9 @@ This lets you build hybrid pipelines combining AE animation with AI-driven visua
 ```
 AE-ComfyUI-Panels/
 ├── Text2Image/        # Text-to-image panel code
+│   └── API/           # Ready-to-use ComfyUI API workflow JSONs
 ├── Image2Image/       # Image-to-image panel code
-├── JsonReader/        # Metadata tools for AE
+├── JsonReader/        # JSON metadata reader panel
 ├── Screenshots/       # UI & workflow reference images
 ├── .gitignore
 └── LICENSE
@@ -66,9 +85,9 @@ AE-ComfyUI-Panels/
 
 ## 🖥️ **Requirements**
 
-* Adobe After Effects (2022 or newer recommended)
-* ComfyUI running locally (default: [http://127.0.0.1:8000](http://127.0.0.1:8000) )
-* A compatible workflow for Image2Image or Text2Image
+* Adobe After Effects CC 2018 or newer
+* [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally or on the network (default: `127.0.0.1:8188`)
+* A ComfyUI API-format workflow JSON file
 
 ---
 
@@ -79,47 +98,69 @@ AE-ComfyUI-Panels/
    ```
    git clone https://github.com/ckonteos80/AE-ComfyUI-Panels.git
    ```
-2. Copy the panel scripts into:
 
-   ```
-   Adobe After Effects / Support Files / Scripts / ScriptUI Panels/
-   ```
-3. Restart AE.
-4. Access the panel from:
+2. In After Effects, go to **File → Scripts → Install ScriptUI Panel...**
 
-   ```
-   Window → AE-ComfyUI Panel
-   ```
+3. Select the `.jsx` file for the panel you want to install and click **Open**
+
+4. Restart After Effects
+
+5. Open the panel via **Window → ComfyUI_Text2Image.jsx** (or the respective panel name)
+
+> **Note:** Enable script access if prompted:
+> **Edit → Preferences → Scripting & Expressions → Allow Scripts To Write Files And Access Network**
 
 ---
 
 ## ▶️ **Usage**
 
-### **Text-to-Image**
+### **Text-to-Image** — [full docs](Text2Image/README.md)
 
-1. Open the Text2Image panel
-2. Enter prompt + settings
-3. Click **Generate**
-4. The result imports directly into your AE project
+1. Start ComfyUI with your desired model loaded
+2. Open the panel via **Window → ComfyUI_Text2Image.jsx**
+3. Set host/port and choose a workflow JSON
+4. Enter your prompt (or enable **Use all enabled text layers** for batch mode)
+5. Adjust parameters and click **Generate**
+6. Results are automatically imported into your AE project
 
-### **Image-to-Image**
+### **Image-to-Image** — [full docs](Image2Image/README.md) *(work in progress)*
 
-1. Select an image layer in AE
-2. Open the Image2Image panel
-3. Adjust parameters (denoise, strength, etc.)
-4. Generate → result appears as a new imported layer
+1. Select an image layer in your composition
+2. Open the panel via **Window → ComfyUI_Image2Image.jsx**
+3. Choose a workflow JSON, adjust parameters
+4. Click **Generate** — result appears as a new imported layer
 
-### **Metadata Reading**
+### **JSON Reader** — [full docs](JsonReader/README.md)
 
-Use the JsonReader tools to read ComfyUI’s JSON output into AE (seed, params, etc.).
+1. Import a ComfyUI PNG into your project and add it to a composition
+2. Select the footage layer in the timeline
+3. Open the panel via **Window → ComfyUI_JsonReader.jsx**
+4. Click **From Selected Layer** — all generation parameters are displayed instantly
+5. Use **Copy API Prompt** or **Save API Prompt** to export the JSON for reuse
+
+---
+
+## 🗂️ **Example Workflows**
+
+Ready-to-use API-format workflow JSONs are included in [`Text2Image/API/`](Text2Image/API/):
+
+| File | Model Family | Notes |
+|------|-------------|-------|
+| [Flux1_LoRA.json](Text2Image/API/Flux1_LoRA.json) | Flux.1 + LoRA | `KSampler` + `CLIPTextEncodeFlux` |
+| [Flux1_no_LoRA.json](Text2Image/API/Flux1_no_LoRA.json) | Flux.1 | `KSampler` + `CLIPTextEncodeFlux` |
+| [Flux2_LoRA.json](Text2Image/API/Flux2_LoRA.json) | Flux.2 + LoRA | `SamplerCustomAdvanced` |
+| [Flux2_NoLoRA.json](Text2Image/API/Flux2_NoLoRA.json) | Flux.2 | `SamplerCustomAdvanced` |
+| [Flux2_Image_Reference.json](Text2Image/API/Flux2_Image_Reference.json) | Flux.2 image-reference | `SamplerCustomAdvanced` |
+| [hidream_i1_full.json](Text2Image/API/hidream_i1_full.json) | HiDream i1 | — |
+| [qwen_image_illustration_lora.json](Text2Image/API/qwen_image_illustration_lora.json) | Qwen Image + LoRA | Positive + negative prompts |
+
+All files are exported in **API format** from ComfyUI (not the UI/graph format).
 
 ---
 
 ## 🚧 **Roadmap**
 
-* Batch prompt generation
 * Live preview inside panel
-* Progress indicator during ComfyUI rendering
 * Multi-image return support
 * Optional AE project template
 
