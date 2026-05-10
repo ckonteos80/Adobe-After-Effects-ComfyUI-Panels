@@ -1,6 +1,6 @@
 ﻿# **AE-ComfyUI-Panels**
 
-AE → ComfyUI generative workflow
+Adobe After Effects → ComfyUI generative workflow
 
 A set of After Effects ScriptUI panels that connect directly with ComfyUI.
 Send prompts or selected layers from AE, generate images through your ComfyUI workflow, and automatically import the results back into your composition.
