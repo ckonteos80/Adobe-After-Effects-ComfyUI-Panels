@@ -10,7 +10,7 @@ A streamlined AI-enhanced pipeline for motion graphics and design.
 
 ## 🎬 **Demo**
 
-[![Watch the demo](https://img.youtube.com/vi/cnzMNZIOZq4/maxresdefault.jpg)](https://youtu.be/cnzMNZIOZq4)
+[![Watch the demo](https://img.youtube.com/vi/COzt2UDgLn4/maxresdefault.jpg)](https://youtu.be/COzt2UDgLn4)
 
 *Text2Image and JSON Reader panels in action*
 
