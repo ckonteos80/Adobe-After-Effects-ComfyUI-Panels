@@ -168,7 +168,8 @@ All files are exported in **API format** from ComfyUI (not the UI/graph format).
 
 ## 📸 **Screenshots**
 
-*(Insert images from `/Screenshots` here)*
+![All Panels](Screenshots/AllPanels.jpg)
+*Left to right: Text2Image, Image2Image, JSON Reader*
 
 ---
 
