@@ -4,6 +4,7 @@ Adobe After Effects → ComfyUI generative workflow
 
 A set of After Effects ScriptUI panels that connect directly with ComfyUI.
 Send prompts or selected layers from AE, generate images through your ComfyUI workflow, and automatically import the results back into your composition.
+For cloud-based generation, the CloudGen panel routes prompts and reference images to Google Gemini through ComfyUI — no local GPU required.
 A streamlined AI-enhanced pipeline for motion graphics and design.
 
 ---
@@ -32,6 +33,8 @@ Depending on the panel, AE can:
 3. Process it using your ComfyUI workflow,
 4. Retrieve the generated output into the AE project,
 5. Optionally read JSON metadata (seed, settings, etc.) for reproducible generation.
+
+6. Or route to **Google Gemini via ComfyUI** (CloudGen) — billed per image via ComfyUI credits, no local GPU required.
 
 This lets you build hybrid pipelines combining AE animation with AI-driven visuals.
 
@@ -66,6 +69,17 @@ This lets you build hybrid pipelines combining AE animation with AI-driven visua
 * **Auto-Refresh** — updates automatically when you select a different layer
 * No external dependencies — pure ExtendScript
 
+### CloudGen Panel (Google Gemini via ComfyUI)
+* Generate images via Google Gemini (Nano Banana / Nano Banana Pro) through a local ComfyUI instance
+* **No local GPU required** — billed per image via ComfyUI credits (platform.comfy.org)
+* **Text-to-Image and Image-to-Image** — mode auto-detected from active reference slots
+* **Up to 14 reference image slots** — assign specific layers or use dynamic Top/Lowest layer tracking
+* **Composition-aware planner** — auto-segments work area by text+image layer transitions and generates one batch per unique segment
+* **Cost confirmation dialog** — review all planned jobs and estimated credit cost before submitting
+* **Per-composition memory** — model, slots, and settings saved and restored per comp
+* Automatic import of generated images timed to their composition segment
+* Pure ExtendScript — no external dependencies
+
 ---
 
 ## 📁 **Folder Structure**
@@ -76,6 +90,7 @@ AE-ComfyUI-Panels/
 │   └── API/           # Ready-to-use ComfyUI API workflow JSONs
 ├── Image2Image/       # Image-to-image panel code
 ├── JsonReader/        # JSON metadata reader panel
+├── Gemini/            # CloudGen panel — Gemini via ComfyUI
 ├── Screenshots/       # UI & workflow reference images
 ├── .gitignore
 └── LICENSE
@@ -88,6 +103,7 @@ AE-ComfyUI-Panels/
 * Adobe After Effects CC 2018 or newer
 * [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally or on the network (default: `127.0.0.1:8188`)
 * A ComfyUI API-format workflow JSON file
+* A ComfyUI credits account at [platform.comfy.org](https://platform.comfy.org) *(CloudGen panel only)*
 
 ---
 
@@ -138,6 +154,15 @@ AE-ComfyUI-Panels/
 4. Click **From Selected Layer** — all generation parameters are displayed instantly
 5. Use **Copy API Prompt** or **Save API Prompt** to export the JSON for reuse
 
+### **CloudGen (Google Gemini)** — [full docs](Gemini/README.md)
+
+1. Start ComfyUI and open the panel via **Window → ComfyUI_Gemini.jsx**
+2. Set host/port and enter your ComfyUI credits API key in Settings
+3. Choose a Gemini model, set your prompt source, and optionally add reference image slots
+4. Set aspect ratio, resolution, and variations, then click **Generate**
+5. Review the cost confirmation dialog and confirm
+6. Results are imported and placed in the timeline at the correct time range
+
 ---
 
 ## 🗂️ **Example Workflows**
@@ -170,6 +195,9 @@ All files are exported in **API format** from ComfyUI (not the UI/graph format).
 
 ![All Panels](Screenshots/AllPanels.jpg)
 *Left to right: Text2Image, Image2Image, JSON Reader*
+
+![CloudGen Panel](Screenshots/Gemini.jpg)
+*CloudGen — Google Gemini image generation via ComfyUI*
 
 ---
 
