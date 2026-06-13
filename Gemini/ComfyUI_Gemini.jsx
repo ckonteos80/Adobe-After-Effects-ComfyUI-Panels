@@ -69,7 +69,8 @@
       apiKey: "",
       googleApiKey: "",
       aeProjectFolder: "",
-      filenamePrefix: "CloudGen"
+      filenamePrefix: "CloudGen",
+      renderTemplateName: "PNG After 2 Comfy"
     };
     if (!SETTINGS_FILE.exists) return defaults;
     try {
@@ -706,6 +707,61 @@
     } catch(e){ return ""; }
   }
 
+  function isImageOutputFormat(fmt){
+    var f = (fmt || "").toLowerCase();
+    return f.indexOf("sequence") >= 0 ||
+           f.indexOf("png")      >= 0 ||
+           f.indexOf("tiff")     >= 0 ||
+           f.indexOf("tif")      >= 0 ||
+           f.indexOf("openexr")  >= 0 ||
+           f.indexOf("exr")      >= 0 ||
+           f.indexOf("dpx")      >= 0 ||
+           f.indexOf("cineon")   >= 0 ||
+           f.indexOf("targa")    >= 0 ||
+           f.indexOf("jpeg")     >= 0 ||
+           f.indexOf("jpg")      >= 0 ||
+           f.indexOf("radiance") >= 0 ||
+           f.indexOf("sgi")      >= 0 ||
+           f.indexOf("iff")      >= 0;
+  }
+
+  function queryRenderTemplates(){
+    if (!app.project) return [];
+    var allNames = [];
+    var probeComp = null, probeRI = null;
+    try {
+      var rq = app.project.renderQueue;
+      if (rq.numItems > 0){
+        allNames = [].concat(rq.item(1).outputModule(1).templates);
+      } else {
+        probeComp = app.project.items.addComp("__cg_tmpl_q__", 1, 1, 1, 1/24, 24);
+        probeRI   = rq.items.add(probeComp);
+        allNames  = [].concat(probeRI.outputModule(1).templates);
+        probeRI.remove();   probeRI   = null;
+        probeComp.remove(); probeComp = null;
+      }
+      probeComp = app.project.items.addComp("__cg_tmpl_q__", 1, 1, 1, 1/24, 24);
+      probeRI   = rq.items.add(probeComp);
+      var om    = probeRI.outputModule(1);
+      var imageNames = [];
+      for (var i = 0; i < allNames.length; i++){
+        try {
+          om.applyTemplate(allNames[i]);
+          var fmt = om.getSettings(GetSettingsFormat.STRING)["Format"] || "";
+          if (isImageOutputFormat(fmt)) imageNames.push(allNames[i]);
+        } catch(tmplErr){ /* template unreadable — skip */ }
+      }
+      imageNames.sort();
+      return imageNames;
+    } catch(err){
+      try { log("queryRenderTemplates failed"); } catch(_){}
+      return [];
+    } finally {
+      try { if (probeRI)   probeRI.remove();   } catch(_){}
+      try { if (probeComp) probeComp.remove(); } catch(_){}
+    }
+  }
+
   // The topmost image layer that is active at time t (or null if none).
   function findTopImageAt(imageLayers, t){
     for (var i = 0; i < imageLayers.length; i++){
@@ -931,10 +987,12 @@
     renderItem.timeSpanStart = comp.time;
     renderItem.timeSpanDuration = comp.frameDuration;
     var outputModule = renderItem.outputModule(1);
-    try { outputModule.applyTemplate(RENDER_TEMPLATE_NAME); }
+    var _tmplName = (settings.renderTemplateName) || RENDER_TEMPLATE_NAME;
+    try { outputModule.applyTemplate(_tmplName); }
     catch(e){
       try { renderItem.remove(); } catch(_){}
-      die("Output module template '" + RENDER_TEMPLATE_NAME + "' not found. Please create it in AE (Edit → Templates → Output Module).", e.toString());
+      var _detail = ""; try { _detail = String(e); } catch(_){}
+      die("Output module template '" + _tmplName + "' not found.\nCheck Settings → FX Template and ensure the template exists in AE.", _detail);
     }
     try {
       var omSettings = outputModule.getSettings(GetSettingsFormat.STRING_SETTABLE);
@@ -944,7 +1002,24 @@
     } catch(_){}
     outputModule.file = outputFile;
     if (renderItem.status !== RQItemStatus.QUEUED) renderItem.render = true;
-    renderQueue.render();
+    // Pause all other queued items so only ours renders
+    var _ourIdx = renderQueue.numItems; // our item was just added — always last
+    var _pausedIdx = [];
+    for (var _ri = 1; _ri < _ourIdx; _ri++){
+      try {
+        if (renderQueue.item(_ri).status === RQItemStatus.QUEUED){
+          renderQueue.item(_ri).render = false;
+          _pausedIdx.push(_ri);
+        }
+      } catch(_){}
+    }
+    try {
+      renderQueue.render();
+    } finally {
+      for (var _pi = 0; _pi < _pausedIdx.length; _pi++){
+        try { renderQueue.item(_pausedIdx[_pi]).render = true; } catch(_){}
+      }
+    }
     $.sleep(200);
 
     var actual = null;
@@ -1466,6 +1541,15 @@
   filePrefixEdit.preferredSize.width = 160;
   filePrefixEdit.helpTip = "Prefix for filenames saved by ComfyUI (e.g. 'CloudGen' → CloudGen_00001_.png)";
 
+  var fxTmplRow = settingsPanel.add("group"); fxTmplRow.orientation = "row";
+  fxTmplRow.add("statictext", undefined, "FX Template:");
+  var renderTmplDrop = fxTmplRow.add("dropdownlist", undefined, []);
+  renderTmplDrop.preferredSize.width = 220;
+  renderTmplDrop.helpTip = "Output module template used when rendering reference slots with FX enabled";
+  var renderTmplRefreshBtn = fxTmplRow.add("button", undefined, "↺");
+  renderTmplRefreshBtn.preferredSize.width = 28;
+  renderTmplRefreshBtn.helpTip = "Refresh template list from AE";
+
   var logBtnRow = settingsPanel.add("group"); logBtnRow.orientation = "row";
   var viewLogBtn = logBtnRow.add("button", undefined, "View Log");
   var clearSessionBtn = logBtnRow.add("button", undefined, "Reset session counter");
@@ -1760,6 +1844,24 @@
     resDrop.selection = selIdx;
   }
 
+  function populateRenderTemplateDropdown(){
+    var templates = queryRenderTemplates();
+    var savedName = settings.renderTemplateName || RENDER_TEMPLATE_NAME;
+    renderTmplDrop.removeAll();
+    if (templates.length === 0){
+      renderTmplDrop.add("item", savedName);
+      renderTmplDrop.selection = 0;
+      return;
+    }
+    var selIdx = 0;
+    for (var i = 0; i < templates.length; i++){
+      renderTmplDrop.add("item", templates[i]);
+      if (templates[i] === savedName) selIdx = i;
+    }
+    renderTmplDrop.selection = selIdx;
+    if (renderTmplDrop.selection) settings.renderTemplateName = renderTmplDrop.selection.text;
+  }
+
   // ============================================================
   // PROMPT SOURCE DROPDOWN
   // ============================================================
@@ -1868,6 +1970,14 @@
   apiKeyEdit.onChange         = function(){ settings.apiKey         = apiKeyEdit.text;         saveSettings(settings); };
   googleApiKeyEdit.onChange   = function(){ settings.googleApiKey   = googleApiKeyEdit.text;   saveSettings(settings); };
   filePrefixEdit.onChange     = function(){ settings.filenamePrefix = filePrefixEdit.text;     saveSettings(settings); };
+
+  renderTmplDrop.onChange = function(){
+    if (renderTmplDrop.selection){
+      settings.renderTemplateName = renderTmplDrop.selection.text;
+      saveSettings(settings);
+    }
+  };
+  renderTmplRefreshBtn.onClick = function(){ populateRenderTemplateDropdown(); };
 
   pingBtn.onClick = function(){
     try {
@@ -2172,6 +2282,7 @@
     settings.lastAspect = (asp === "Match comp") ? "match_comp" : asp;
     if (resDrop.enabled && resDrop.selection) settings.lastResolution = resDrop.selection.text;
     settings.lastVariations = Math.round(varSlider.value);
+    if (renderTmplDrop.selection) settings.renderTemplateName = renderTmplDrop.selection.text;
     saveSettings(settings);
   }
 
@@ -2674,6 +2785,7 @@
   // ============================================================
   populateAspectDropdown();
   populateResolutionDropdown();
+  populateRenderTemplateDropdown();
   populatePromptSourceDropdown();
   updateApiKeyFields();
   // Start with one slot
