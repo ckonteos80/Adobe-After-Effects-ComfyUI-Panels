@@ -1,0 +1,97 @@
+{
+  "2": {
+    "inputs": {
+      "prompt": "A beautiful cinematic portrait, photorealistic, 8K detail",
+      "model": "gemini-3.1-flash-image-preview",
+      "aspect_ratio": "1:4",
+      "image_size": "4K",
+      "seed": 0,
+      "randomize_seed": false,
+      "api_key": "",
+      "system_prompt": "You are an expert image composition engine. Use the reference images to understand the visual style, character traits, and composition goals. Generate a new image that matches the described scenario.",
+      "safety_threshold": "BLOCK_ONLY_HIGH",
+      "image_1": [
+        "4",
+        0
+      ],
+      "image_2": [
+        "5",
+        0
+      ],
+      "image_3": [
+        "6",
+        0
+      ],
+      "image_4": [
+        "7",
+        0
+      ],
+      "image_5": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "GoogleAI_NanoBananaNode",
+    "_meta": {
+      "title": "Google AI - Nano Banana (NB2/Pro)"
+    }
+  },
+  "3": {
+    "inputs": {
+      "filename_prefix": "CloudGen",
+      "images": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "4": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "5": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "7": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "8": {
+    "inputs": {
+      "image": ""
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  }
+}

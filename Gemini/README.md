@@ -10,7 +10,7 @@ A ScriptUI panel that routes prompts and reference images to Google Gemini model
 - **Text-to-Image and Image-to-Image** — mode is auto-detected: T2I when no reference slots are active, I2I when one or more slots have a layer assigned
 - **Flexible prompt sources**: type a prompt manually, auto-use the topmost active text layer (tracks changes across the work area), or pick a specific named text layer
 - **Reference image slots** (up to 5 or 14 depending on model): assign a specific layer, or use dynamic `[Top image layer]` / `[Lowest image layer]` — the panel resolves the correct layer at each point in time
-- **FX rendering** — render a slot through After Effects effects before uploading (requires an "PNG After 2 Comfy" output module template)
+- **FX rendering** — render a slot through After Effects effects before uploading; the output module template is selectable in Settings → FX Template
 - **Match comp aspect ratio** — automatically selects the closest supported ratio for the active composition
 - **Resolution control** — 1K / 2K / 4K (model-dependent)
 - **Variations** — generate 1–10 images per prompt or per timeline segment in one run
@@ -38,18 +38,25 @@ A ScriptUI panel that routes prompts and reference images to Google Gemini model
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally or on your network (default: `127.0.0.1:8000`)
 - ComfyUI credits account at [platform.comfy.org](https://platform.comfy.org) — for the **ComfyUI-variant** models (Nano Banana and Nano Banana Pro)
 - [COMFYUI_PROMPTMODELS](https://github.com/cdanielp/COMFYUI_PROMPTMODELS) custom nodes and a Google AI API key — for the **PromptModel-variant** models only
-- An AE output module template named **"PNG After 2 Comfy"** — required only when using FX rendering on reference slots (see [FX Rendering](#reference-slots--fx-rendering))
+- At least one AE output module template that exports image frames (PNG, TIFF, EXR, etc.) — required only when using FX rendering on reference slots; select which template to use in **Settings → FX Template** (see [FX Rendering](#reference-slots--fx-rendering))
 
 ## Models
 
-| Display Name | Underlying model | ComfyUI node | Max refs | API key type | Resolution |
-|---|---|---|---|---|---|
-| Nano Banana Pro (ComfyUI) | gemini-3-pro-image-preview | `GeminiImage2Node` | 14 | ComfyUI credits | 1K / 2K / 4K |
-| Nano Banana (ComfyUI) | gemini-2.5-flash-image-preview | `GeminiImageNode` | 5 | ComfyUI credits | — |
-| Nano Banana Pro (PromptModel) | gemini-3-pro-image-preview | `GoogleAI_NanoBananaNode` | 5 | Google AI | 1K / 2K / 4K |
-| Nano Banana (PromptModel) | gemini-2.5-flash-image-preview | `GoogleAI_NanoBananaNode` | 5 | Google AI | 1K / 2K / 4K |
+| | **Nano Banana Pro (ComfyUI)** | **Nano Banana (ComfyUI)** | **Nano Banana Pro (PromptModel)** | **Nano Banana (PromptModel)** |
+|---|---|---|---|---|
+| **API model** | gemini-3-pro-image-preview | gemini-2.5-flash-image-preview | gemini-3-pro-image-preview | gemini-2.5-flash-image-preview |
+| **ComfyUI node** | `GeminiImage2Node` | `GeminiImageNode` | `GoogleAI_NanoBananaNode` | `GoogleAI_NanoBananaNode` |
+| **Billing** | ComfyUI credits | ComfyUI credits | Google API key | Google API key |
+| **Max refs** | 14 | 5 | 5 | 5 |
+| **Resolution** | 1K / 2K / 4K | Fixed (no control) | 1K / 2K / 4K | 1K / 2K / 4K |
+| **Aspect ratios** | 1:1 to 21:9 (10 options) | 1:1 to 16:9 + auto (10 options) | 1:1 to 21:9 (10 options) | 1:1 to 16:9 + auto (10 options) |
+| **Strengths** | Complex prompts, typography, multi-subject identity, cinematic composites | Fast, consistent character, natural language edits | Same as Nano Banana Pro (ComfyUI) | Same as Nano Banana (ComfyUI) |
+| **Google API price** | ~$0.045–$0.15 / image | ~$0.039 / image | ~$0.045–$0.15 / image | ~$0.039 / image |
+| **ComfyUI credits** | ~28.3 (1K / 2K) / ~50.5 (4K) | ~8.2 | — | — |
 
 The ComfyUI-variant models use the `GeminiImageNode` / `GeminiImage2Node` / `BatchImagesNode` nodes built into ComfyUI — no custom node pack required. The PromptModel variants use [`GoogleAI_NanoBananaNode`](https://github.com/cdanielp/COMFYUI_PROMPTMODELS) from the COMFYUI_PROMPTMODELS pack and require a Google AI API key instead of ComfyUI credits.
+
+A reference ComfyUI workflow for the PromptModel variant is included in this folder as [`PromptModel_Gemini.json`](PromptModel_Gemini.json). You can load it directly into ComfyUI to inspect the node layout or test the workflow manually. The panel does not read this file at runtime — workflows are embedded in the script.
 
 ## Usage
 
@@ -99,7 +106,7 @@ Each reference slot can be configured in one of three modes:
 | **▲ Top** checkbox | The topmost active image layer at each generation's key frame — resolved dynamically |
 | **▼ Low** checkbox | The bottommost (lowest in stack) active image layer at each key frame |
 
-**FX checkbox**: when enabled, the slot is rendered through the AE render queue so After Effects effects are applied before uploading. This requires an output module template named **"PNG After 2 Comfy"** to exist in AE (create it via **Edit → Templates → Output Module**).
+**FX checkbox**: when enabled, the slot is rendered through the AE render queue so After Effects effects are applied before uploading. The output module template used is the one selected in **Settings → FX Template** (default: "PNG After 2 Comfy"). Create or manage templates in AE via **Edit → Templates → Output Module**. The FX Template dropdown shows only image-producing templates (PNG, TIFF, EXR, etc.) — click **↺** to refresh it after creating a new template.
 
 Only one slot can claim Top and one can claim Lowest. If Top and Lowest resolve to the same layer at a given frame, the duplicate is silently dropped and the layer is sent once.
 
@@ -119,9 +126,10 @@ Before submitting anything to ComfyUI, the panel shows a resizable dialog listin
 |---|---|---|
 | ComfyOrg API key | Settings → ComfyOrg Key | Used by Nano Banana (ComfyUI) and Nano Banana Pro (ComfyUI) |
 | Google AI API key | Settings → Google Key | Used by PromptModel variants |
-| Output folder | Settings → Output folder | Where downloaded images are saved; defaults to project folder |
+| Output folder | Settings → Output folder | Where rendered FX frames and downloaded images are saved. Per-composition. Falls back to AE project folder, then `%TEMP%` if blank. |
 | AE project panel folder | Settings → AE folder | Folder path inside the AE Project panel for imported footage (e.g. `CloudGen/Renders`). Leave blank for root. |
 | File prefix | Settings → File prefix | Prefix for filenames saved by ComfyUI (e.g. `CloudGen` → `CloudGen_00001_.png`) |
+| FX Template | Settings → FX Template | AE output module template used when rendering reference slots with FX enabled. Shows image-producing templates only. Click ↺ to refresh after creating a new template. Defaults to "PNG After 2 Comfy". |
 
 **Persistent files:**
 - Settings: `%AppData%\ComfyCloudGen_Settings.json`
@@ -139,9 +147,9 @@ Before submitting anything to ComfyUI, the panel shows a resizable dialog listin
 - The PromptModel variants require `GoogleAI_NanoBananaNode`
 - Make sure you selected the correct model variant for the nodes you have installed
 
-### "Output module template 'PNG After 2 Comfy' not found"
+### "Output module template '…' not found"
 - This is only needed when **FX** is enabled on a reference slot
-- Create the template in AE: **Edit → Templates → Output Module**, set format to PNG, save as "PNG After 2 Comfy"
+- The template named in **Settings → FX Template** does not exist in AE — create it via **Edit → Templates → Output Module**, set format to any image format (PNG recommended), save it, then click ↺ in the panel to refresh the dropdown and select it
 
 ### "Nothing to generate"
 - Prompt source is **[Top text layer]** but no text layers are active in the work area

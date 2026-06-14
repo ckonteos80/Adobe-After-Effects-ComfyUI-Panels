@@ -734,22 +734,26 @@
       if (rq.numItems > 0){
         allNames = [].concat(rq.item(1).outputModule(1).templates);
       } else {
-        probeComp = app.project.items.addComp("__cg_tmpl_q__", 1, 1, 1, 1/24, 24);
+        probeComp = app.project.items.addComp("__cg_tmpl_q__", 4, 4, 1, 1/24, 24);
         probeRI   = rq.items.add(probeComp);
         allNames  = [].concat(probeRI.outputModule(1).templates);
         probeRI.remove();   probeRI   = null;
         probeComp.remove(); probeComp = null;
       }
-      probeComp = app.project.items.addComp("__cg_tmpl_q__", 1, 1, 1, 1/24, 24);
+      probeComp = app.project.items.addComp("__cg_tmpl_q__", 4, 4, 1, 1/24, 24);
       probeRI   = rq.items.add(probeComp);
       var om    = probeRI.outputModule(1);
       var imageNames = [];
       for (var i = 0; i < allNames.length; i++){
         try {
           om.applyTemplate(allNames[i]);
-          var fmt = om.getSettings(GetSettingsFormat.STRING)["Format"] || "";
+          var fmt = om.getSettings(GetSettingsFormat.STRING_SETTABLE)["Format"] || "";
+          if (!fmt) fmt = om.getSettings(GetSettingsFormat.STRING)["Format"] || "";
           if (isImageOutputFormat(fmt)) imageNames.push(allNames[i]);
-        } catch(tmplErr){ /* template unreadable — skip */ }
+        } catch(tmplErr){
+          // Can't probe this template — include it so the user can still select it
+          imageNames.push(allNames[i]);
+        }
       }
       imageNames.sort();
       return imageNames;

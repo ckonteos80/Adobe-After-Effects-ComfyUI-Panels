@@ -235,7 +235,20 @@
 
     <section>
       <h2>🎨 Panels</h2>
-      
+
+      <h3>☁️ <a href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/tree/main/Gemini" target="_blank">CloudGen Panel — Google Gemini via ComfyUI</a></h3>
+      <ul>
+        <li>Generate images via Google Gemini (Nano Banana / Nano Banana Pro) through a local ComfyUI instance — no local GPU required</li>
+        <li>4 model variants: Nano Banana and Nano Banana Pro, each available as a ComfyUI-credits node or a Google-API-key PromptModel node</li>
+        <li>Text-to-Image and Image-to-Image — mode auto-detected from active reference slots</li>
+        <li>Up to 14 reference image slots — assign specific layers or use dynamic Top/Lowest layer tracking</li>
+        <li>FX rendering — render a reference slot through AE effects before uploading; output template selectable in Settings → FX Template</li>
+        <li>Composition-aware planner — auto-segments the work area by text + image layer transitions and generates one batch per unique segment</li>
+        <li>Cost confirmation dialog — review all planned jobs and estimated credit cost before submitting</li>
+        <li>Per-composition memory — model, slots, prompt, and settings saved and restored per comp</li>
+        <li>Results imported and placed in the timeline at the correct in/out range, scaled to fit the comp</li>
+      </ul>
+
       <h3>📝 <a href="https://github.com/ckonteos80/Adobe-After-Effects-ComfyUI-Panels/tree/main/Text2Image" target="_blank">Text-to-Image Panel</a></h3>
       <ul>
         <li>Generate AI images from a typed prompt or automatically from every enabled text layer in the active composition</li>
@@ -279,8 +292,8 @@
       <h2>⚙️ Installation</h2>
       <p><strong>Step 1: Download the panel(s)</strong></p>
       <ul>
-        <li>Download <code>ComfyUI_Text2Image_v1.0.0.zip</code> and/or <code>ComfyUI_JsonReader_v1.0.0.zip</code> from the latest release</li>
-        <li>Extract the zip and locate the <code>.jsx</code> file inside</li>
+        <li>Download the desired panel(s) from the latest release — <code>ComfyUI_Gemini.jsx</code>, <code>ComfyUI_Text2Image_v1.0.0.zip</code>, and/or <code>ComfyUI_JsonReader_v1.0.0.zip</code></li>
+        <li>Extract any zip files and locate the <code>.jsx</code> file inside</li>
       </ul>
 
       <p><strong>Step 2: Install into After Effects</strong></p>
@@ -288,7 +301,7 @@
         <li>In After Effects, go to <strong>File → Scripts → Install ScriptUI Panel...</strong></li>
         <li>Select the <code>.jsx</code> file and click Open</li>
         <li>Restart After Effects</li>
-        <li>Open the panel via <strong>Window → ComfyUI_Text2Image.jsx</strong> or <strong>Window → ComfyUI_JsonReader.jsx</strong></li>
+        <li>Open the panel via <strong>Window → ComfyUI_Gemini.jsx</strong>, <strong>Window → ComfyUI_Text2Image.jsx</strong>, or <strong>Window → ComfyUI_JsonReader.jsx</strong></li>
       </ol>
 
       <p><strong>Note:</strong> Enable script access if prompted — <strong>Edit → Preferences → Scripting &amp; Expressions → Allow Scripts To Write Files And Access Network</strong></p>
@@ -307,6 +320,15 @@
 
     <section>
       <h2>▶️ Usage</h2>
+      <p><strong>CloudGen Panel (Google Gemini)</strong></p>
+      <ul>
+        <li>Start ComfyUI and open the panel via <strong>Window → ComfyUI_Gemini.jsx</strong></li>
+        <li>Set host/port and enter your API key — <strong>ComfyOrg Key</strong> for ComfyUI-variant models, <strong>Google Key</strong> for PromptModel variants</li>
+        <li>Choose a Gemini model, set your prompt source, and optionally add reference image slots</li>
+        <li>Set aspect ratio, resolution, and number of variations, then click <strong>Generate</strong></li>
+        <li>Review the cost confirmation dialog and confirm — results are downloaded and imported automatically</li>
+      </ul>
+
       <p><strong>Text-to-Image Panel</strong></p>
       <ul>
         <li>Start ComfyUI and open the Text2Image panel in AE via <strong>Window &rarr; ComfyUI_Text2Image.jsx</strong></li>

@@ -71,9 +71,11 @@ This lets you build hybrid pipelines combining AE animation with AI-driven visua
 
 ### CloudGen Panel (Google Gemini via ComfyUI)
 * Generate images via Google Gemini (Nano Banana / Nano Banana Pro) through a local ComfyUI instance
-* **No local GPU required** — billed per image via ComfyUI credits (platform.comfy.org)
+* **No local GPU required** — billed via ComfyUI credits (platform.comfy.org) for ComfyUI-variant models, or via Google AI API key for PromptModel variants
+* **4 model variants** — Nano Banana and Nano Banana Pro, each available as a ComfyUI-credit node or a Google-API-key PromptModel node
 * **Text-to-Image and Image-to-Image** — mode auto-detected from active reference slots
 * **Up to 14 reference image slots** — assign specific layers or use dynamic Top/Lowest layer tracking
+* **FX rendering** — render a reference slot through AE effects before uploading; output template selectable in Settings → FX Template
 * **Composition-aware planner** — auto-segments work area by text+image layer transitions and generates one batch per unique segment
 * **Cost confirmation dialog** — review all planned jobs and estimated credit cost before submitting
 * **Per-composition memory** — model, slots, and settings saved and restored per comp
@@ -103,7 +105,8 @@ AE-ComfyUI-Panels/
 * Adobe After Effects CC 2018 or newer
 * [ComfyUI](https://github.com/comfyanonymous/ComfyUI) running locally or on the network (default: `127.0.0.1:8188`)
 * A ComfyUI API-format workflow JSON file
-* A ComfyUI credits account at [platform.comfy.org](https://platform.comfy.org) *(CloudGen panel only)*
+* A ComfyUI credits account at [platform.comfy.org](https://platform.comfy.org) — for ComfyUI-variant Gemini models *(CloudGen panel only)*
+* A Google AI API key — for PromptModel-variant Gemini models *(CloudGen panel only)*
 
 ---
 
@@ -157,7 +160,7 @@ AE-ComfyUI-Panels/
 ### **CloudGen (Google Gemini)** — [full docs](Gemini/README.md)
 
 1. Start ComfyUI and open the panel via **Window → ComfyUI_Gemini.jsx**
-2. Set host/port and enter your ComfyUI credits API key in Settings
+2. Set host/port and enter your API key in Settings — **ComfyOrg Key** for ComfyUI-variant models, **Google Key** for PromptModel variants
 3. Choose a Gemini model, set your prompt source, and optionally add reference image slots
 4. Set aspect ratio, resolution, and variations, then click **Generate**
 5. Review the cost confirmation dialog and confirm
