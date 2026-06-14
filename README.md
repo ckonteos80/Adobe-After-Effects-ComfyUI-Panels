@@ -34,7 +34,7 @@ Depending on the panel, AE can:
 4. Retrieve the generated output into the AE project,
 5. Optionally read JSON metadata (seed, settings, etc.) for reproducible generation.
 
-6. Or route to **Google Gemini via ComfyUI** (CloudGen) — billed per image via ComfyUI credits, no local GPU required.
+6. Or route to **Google Gemini via ComfyUI** (CloudGen) — billed via ComfyUI credits or Google AI API key depending on model variant, no local GPU required.
 
 This lets you build hybrid pipelines combining AE animation with AI-driven visuals.
 
@@ -42,7 +42,7 @@ This lets you build hybrid pipelines combining AE animation with AI-driven visua
 
 ## ✨ **Features**
 
-### Text2Image Panel
+### Text 2 Image Panel (Open Source Models)
 * Generate AI images from text prompts without leaving After Effects
 * **Text Layer Batch Mode** — automatically generate one image per enabled text layer in the active comp
 * **Batch Variations** — generate multiple images per prompt with Fixed, Random, or Increment seed modes
@@ -53,8 +53,24 @@ This lets you build hybrid pipelines combining AE animation with AI-driven visua
 * Positive & negative prompt support (shown only when the workflow supports it)
 * Automatic import of generated images into your AE project
 
-### Image2Image Panel *(work in progress)*
-* Transform any image layer in your composition using AI
+
+### Google Gemini (Nano Banana)
+* Generate images via Google Gemini (Nano Banana / Nano Banana Pro) through a local ComfyUI instance
+* **No local GPU required** — billed via ComfyUI credits (platform.comfy.org) for ComfyUI-variant models, or via Google AI API key for PromptModel variants
+* **4 model variants** — Nano Banana and Nano Banana Pro, each available as a ComfyUI-credit node or a Google-API-key PromptModel node
+* **Text-to-Image and Image-to-Image** — mode auto-detected from active reference slots
+* **Up to 14 reference image slots** — assign specific layers or use dynamic Top/Lowest layer tracking
+* **Edited Image References** — Apply effects on layers and use them as image references.
+* **Precompositions as References** — use precomp layers as references.
+* **Composition-aware planner** — auto-segments work area by text+image layer transitions and generates one batch per unique segment
+* **Cost confirmation dialog** — review all planned jobs and estimated credit cost before submitting
+* **Per-composition memory** — model, slots, and settings saved and restored per comp
+* Automatic import of generated images timed to their composition segment
+* Pure ExtendScript — no external dependencies
+
+
+### Image 2 Image Panel *(work in progress)*
+* Transform any image layer in your composition using Open source models.
 * **Smart Source Selection** — pick any image layer, with optional render-with-effects support
 * **Batch Variations** — seed increment and denoise progression in a single run
 * Full parameter control: denoise, steps, CFG, sampler, scheduler, seed, resolution
@@ -68,19 +84,6 @@ This lets you build hybrid pipelines combining AE animation with AI-driven visua
 * **Layer Integration** — read metadata directly from a selected footage layer in the active comp
 * **Auto-Refresh** — updates automatically when you select a different layer
 * No external dependencies — pure ExtendScript
-
-### CloudGen Panel (Google Gemini via ComfyUI)
-* Generate images via Google Gemini (Nano Banana / Nano Banana Pro) through a local ComfyUI instance
-* **No local GPU required** — billed via ComfyUI credits (platform.comfy.org) for ComfyUI-variant models, or via Google AI API key for PromptModel variants
-* **4 model variants** — Nano Banana and Nano Banana Pro, each available as a ComfyUI-credit node or a Google-API-key PromptModel node
-* **Text-to-Image and Image-to-Image** — mode auto-detected from active reference slots
-* **Up to 14 reference image slots** — assign specific layers or use dynamic Top/Lowest layer tracking
-* **FX rendering** — render a reference slot through AE effects before uploading; output template selectable in Settings → FX Template
-* **Composition-aware planner** — auto-segments work area by text+image layer transitions and generates one batch per unique segment
-* **Cost confirmation dialog** — review all planned jobs and estimated credit cost before submitting
-* **Per-composition memory** — model, slots, and settings saved and restored per comp
-* Automatic import of generated images timed to their composition segment
-* Pure ExtendScript — no external dependencies
 
 ---
 
